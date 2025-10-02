@@ -2,14 +2,13 @@
 
 import { createContext, useCallback, useContext, useMemo, useRef, type PropsWithChildren } from 'react';
 import { useEditorStore } from '../../../../../packages/core/store/editor.store';
+import type { NodeKind } from '../../../../../packages/core/store/editor.store';
 
 /**
  * Builder UI helpers only:
  * - addNode: データ操作はZustandに委譲（単一の真実のソース）
  * - attach/focus: 右ペインの入力フォーカス制御（UI専用）
  */
-type NodeKind = 'text' | 'button';
-
 type BuilderContextValue = {
   addNode: (kind: NodeKind) => void;
   attachNodeNameInput: (input: HTMLInputElement | null) => void;
