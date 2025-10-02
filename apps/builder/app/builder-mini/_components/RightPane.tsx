@@ -6,30 +6,25 @@ import { useEditorStore } from '../../../../../packages/core/store/editor.store'
 import { useBuilder } from './builderContext';
 
 const paneStyle: CSSProperties = { display: 'flex', flexDirection: 'column', gap: 12 };
-
 const placeholderStyle: CSSProperties = { color: '#9ca3af', fontSize: 14, margin: 0 };
-
 const labelStyle: CSSProperties = {
   fontSize: 12,
   fontWeight: 600,
   letterSpacing: '0.04em',
   textTransform: 'uppercase',
 };
-
 const inputStyle: CSSProperties = {
   padding: '8px 12px',
   borderRadius: 6,
   border: '1px solid #d1d5db',
   fontSize: 14,
 };
-
 const metaStyle: CSSProperties = { fontSize: 12, color: '#6b7280', margin: 0 };
 
 export default function RightPane() {
   const selectedId = useEditorStore((s) => s.selectedId);
   const doc = useEditorStore((s) => s.doc);
   const updateNodeName = useEditorStore((s) => s.updateNodeName);
-
   const { attachNodeNameInput, focusNodeNameInput } = useBuilder();
 
   const inputRef = useRef<HTMLInputElement>(null);
