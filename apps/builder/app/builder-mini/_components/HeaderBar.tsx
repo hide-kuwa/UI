@@ -15,11 +15,8 @@ const headerStyle: CSSProperties = {
 };
 
 const titleStyle: CSSProperties = { fontWeight: 600 };
-
 const rightSectionStyle: CSSProperties = { display: 'flex', alignItems: 'center', gap: 12 };
-
 const statusStyle: CSSProperties = { fontSize: 14, display: 'flex', alignItems: 'center', gap: 6 };
-
 const buttonStyle: CSSProperties = {
   padding: '8px 12px',
   borderRadius: 6,
@@ -55,15 +52,13 @@ export default function HeaderBar() {
         return;
       }
 
-      // Node shortcuts disabled inside editable controls
+      // Node shortcuts（テキスト入力中は無効）
       if (isEditableElement(e.target)) return;
       if (e.metaKey || e.ctrlKey || e.altKey) return;
 
-      // Add Text (t), Button (b)
       const k = e.key.toLowerCase();
       if (k === 't') {
         addNode('text');
-        // 追加直後に名前入力へ
         setTimeout(focusNodeNameInput, 0);
       } else if (k === 'b') {
         addNode('button');

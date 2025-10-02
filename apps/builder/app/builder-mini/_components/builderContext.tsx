@@ -5,9 +5,7 @@ import { useEditorStore } from '../../../../../packages/core/store/editor.store'
 import type { NodeKind } from '../../../../../packages/core/store/editor.store';
 
 /**
- * Builder UI helpers only:
- * - addNode: データ操作はZustandに委譲（単一の真実のソース）
- * - attach/focus: 右ペインの入力フォーカス制御（UI専用）
+ * Builder の UI ヘルパーだけを提供（データはZustandに一元化）
  */
 type BuilderContextValue = {
   addNode: (kind: NodeKind) => void;
@@ -34,8 +32,7 @@ export function BuilderProvider({ children }: PropsWithChildren) {
 
   const addNode = useCallback(
     (kind: NodeKind) => {
-      // Zustand側で追加＆選択まで実施済み（前工程で実装ずみ）
-      addNodeStore(kind);
+      addNodeStore(kind); // 追加→選択はstore側で実施
     },
     [addNodeStore]
   );
@@ -50,8 +47,6 @@ export function BuilderProvider({ children }: PropsWithChildren) {
 
 export function useBuilder() {
   const ctx = useContext(BuilderContext);
-  if (!ctx) {
-    throw new Error('useBuilder must be used within <BuilderProvider>');
-  }
+  if (!ctx) throw new Error('useBuilder must be used within <BuilderProvider>');
   return ctx;
 }

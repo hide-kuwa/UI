@@ -1,97 +1,139 @@
-'use client';
+// Responsibility: editor state (select/update) & persistence (localStorage). No UI imports.
 
 import { create } from 'zustand';
+import { deserialize, serialize } from '../serialize/json';
+import type { Document, Node } from '../types/node';
 
-export type NodeKind = 'text' | 'button';
+export type EditorNode = Node;                 // ← Canvas互換の型エイリアス
+export type NodeKind = Node['kind'];           // ← LeftPane互換の型エイリアス
 
-export type EditorNode = {
-  id: string;
-  name: string;
-  kind: NodeKind;
+const LS_KEY = 'uib:doc:default';
+let lastLoadedSerialized: string | null = null;
+
+// サンプルDoc（version=1を厳守）
+const createSampleDocument = (): Document => ({
+  id: 'doc-default',
+  title: 'Demo Page',
+  version: 1,
+  nodes: [
+    {
+      id: 'node-text-1',
+      name: 'Hero Title',
+      kind: 'text',
+      props: { text: 'Hello world', fontSize: 32 },
+    },
+    {
+      id: 'node-button-1',
+      name: 'Primary Action',
+      kind: 'button',
+      props: { label: 'Click me' },
+    },
+  ],
+});
+
+const loadDocument = (): Document => {
+  if (typeof window === 'undefined') {
+    lastLoadedSerialized = null;
+    return createSampleDocument();
+  }
+  const raw = window.localStorage.getItem(LS_KEY);
+  if (!raw) {
+    lastLoadedSerialized = null;
+    return createSampleDocument();
+  }
+  try {
+    const doc = deserialize(raw);
+    lastLoadedSerialized = raw;
+    return doc;
+  } catch {
+    lastLoadedSerialized = null;
+    return createSampleDocument();
+  }
 };
 
-export type EditorDocument = {
-  title: string;
-  nodes: EditorNode[];
+const findNode = (nodes: Document['nodes'], id: string): Node | null =>
+  nodes.find((n) => n.id === id) ?? null;
+
+// 一意ID（UUID優先）
+const genId = (kind: NodeKind) => {
+  const base = `node-${kind}-`;
+  try {
+    const c = (globalThis as unknown as { crypto?: Crypto & { randomUUID?: () => string } }).crypto;
+    const uuid = c?.randomUUID?.();
+    if (uuid) return base + uuid;
+  } catch { /* ignore */ }
+  return base + Date.now() + '-' + Math.random().toString(36).slice(2, 8);
 };
 
 type EditorState = {
-  doc: EditorDocument;
+  doc: Document;
   selectedId: string | null;
-  dirty: boolean;
-  addNode: (kind: NodeKind) => void;
-  selectNode: (id: string | null) => void;
+
+  // actions
+  select: (id: string | null) => void;     // 既存API（維持）
+  selectNode: (id: string | null) => void; // 新規：Canvas/LeftPane互換用エイリアス
   updateNodeName: (id: string, name: string) => void;
+  addNode: (kind: NodeKind) => string;
+
   saveNow: () => void;
+  lastSaved?: string | null;
+  computeSerialized: () => string;
   isDirty: () => boolean;
 };
 
-const createIsDirty = (dirty: boolean) => () => dirty;
+export const useEditorStore = create<EditorState>((set, get) => {
+  const initialDoc = loadDocument();
+  const initialSerialized = lastLoadedSerialized ?? serialize(initialDoc);
+  const computeSerialized = () => serialize(get().doc);
 
-const initialNodes: EditorNode[] = [
-  { id: 'node-1', name: 'ヒーロー見出し', kind: 'text' },
-  { id: 'node-2', name: 'Primary Button', kind: 'button' },
-];
+  return {
+    doc: initialDoc,
+    selectedId: null,
 
-let nodeCounter = initialNodes.length;
+    select: (id) => set({ selectedId: id }),
+    selectNode: (id) => set({ selectedId: id }), // エイリアス
 
-const initialDoc: EditorDocument = {
-  title: 'サンプルページ',
-  nodes: initialNodes,
-};
+    updateNodeName: (id, name) => {
+      const { doc } = get();
+      const target = findNode(doc.nodes, id);
+      if (!target) return;
+      const nodes = doc.nodes.map((n) => (n.id === id ? { ...n, name } : n));
+      set({ doc: { ...doc, nodes } });
+    },
 
-export const useEditorStore = create<EditorState>((set, get) => ({
-  doc: initialDoc,
-  selectedId: null,
-  dirty: false,
-  addNode: (kind) => {
-    set((state) => {
-      const id = generateNodeId();
-      const name = createDefaultNodeName(kind, state.doc.nodes.length + 1);
-      return {
-        doc: { ...state.doc, nodes: [...state.doc.nodes, { id, name, kind }] },
+    addNode: (kind) => {
+      const { doc } = get();
+      // 表示名は連番のまま維持（UX的に分かりやすい）
+      const count = doc.nodes.filter((n) => n.kind === kind).length + 1;
+      const id = genId(kind);
+      const node: Node =
+        kind === 'text'
+          ? { id, name: `Text ${count}`, kind: 'text', props: { text: 'New Text', fontSize: 16 } }
+          : { id, name: `Button ${count}`, kind: 'button', props: { label: 'New Button' } };
+
+      set((state) => ({
+        doc: { ...state.doc, nodes: [...state.doc.nodes, node] },
         selectedId: id,
-        dirty: true,
-        isDirty: createIsDirty(true),
-      };
-    });
-  },
-  selectNode: (id) =>
-    set((state) => {
-      if (id === null) return { selectedId: null };
-      const exists = state.doc.nodes.some((node) => node.id === id);
-      return exists ? { selectedId: id } : state;
-    }),
-  updateNodeName: (id, name) =>
-    set((state) => {
-      const index = state.doc.nodes.findIndex((node) => node.id === id);
-      if (index === -1) return state;
+      }));
+      return id;
+    },
 
-      const target = state.doc.nodes[index];
-      if (target.name === name) return state;
+    saveNow: () => {
+      const serialized = computeSerialized();
+      let ok = false;
+      if (typeof window !== 'undefined') {
+        try {
+          window.localStorage.setItem(LS_KEY, serialized);
+          ok = true;
+        } catch (e) {
+          console.warn('saveNow: localStorage failed', e);
+        }
+      }
+      if (ok) set({ lastSaved: serialized });
+    },
 
-      const nextNodes = [...state.doc.nodes];
-      nextNodes[index] = { ...target, name };
-
-      return {
-        doc: { ...state.doc, nodes: nextNodes },
-        dirty: true,
-        isDirty: createIsDirty(true),
-      };
-    }),
-  saveNow: () => {
-    if (!get().dirty) return;
-    set({ dirty: false, isDirty: createIsDirty(false) });
-  },
-  isDirty: createIsDirty(false),
-}));
-
-function generateNodeId() {
-  nodeCounter += 1;
-  return `node-${nodeCounter}`;
-}
-
-function createDefaultNodeName(kind: NodeKind, index: number) {
-  const base = kind === 'text' ? 'テキスト' : 'ボタン';
-  return `${base} ${index}`;
-}
+    lastSaved: initialSerialized,
+    computeSerialized,
+    isDirty: () => computeSerialized() !== get().lastSaved,
+  };
+});
