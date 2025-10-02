@@ -1,0 +1,11 @@
+{
+  "name": "ui-builder-monorepo",
+  "private": true,
+  "packageManager": "pnpm@9",
+  "scripts": {
+    "dev": "pnpm -C apps/builder dev",
+    "build": "pnpm -C apps/builder build",
+    "start": "pnpm -C apps/builder start",
+    "typecheck": "pnpm -C apps/builder typecheck"
+  }
+}
