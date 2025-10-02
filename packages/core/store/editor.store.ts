@@ -4,13 +4,13 @@ import { create } from 'zustand';
 import { deserialize, serialize } from '../serialize/json';
 import type { Document, Node } from '../types/node';
 
-export type EditorNode = Node;                 // ← Canvas互換の型エイリアス
-export type NodeKind = Node['kind'];           // ← LeftPane互換の型エイリアス
+export type EditorNode = Node;               // UI用の型エイリアス（Canvas互換）
+export type NodeKind = Node['kind'];         // UI用の型エイリアス（LeftPane互換）
 
 const LS_KEY = 'uib:doc:default';
 let lastLoadedSerialized: string | null = null;
 
-// サンプルDoc（version=1を厳守）
+// サンプル Doc（version=1 を厳守）
 const createSampleDocument = (): Document => ({
   id: 'doc-default',
   title: 'Demo Page',
@@ -32,17 +32,20 @@ const createSampleDocument = (): Document => ({
 });
 
 const loadDocument = (): Document => {
+  // SSRなど window 不在時
   if (typeof window === 'undefined') {
     const doc = createSampleDocument();
     lastLoadedSerialized = serialize(doc);
     return doc;
   }
+
   const raw = window.localStorage.getItem(LS_KEY);
   if (!raw) {
     const doc = createSampleDocument();
     lastLoadedSerialized = serialize(doc);
     return doc;
   }
+
   try {
     const doc = deserialize(raw);
     lastLoadedSerialized = raw;
@@ -57,14 +60,16 @@ const loadDocument = (): Document => {
 const findNode = (nodes: Document['nodes'], id: string): Node | null =>
   nodes.find((n) => n.id === id) ?? null;
 
-// 一意ID（UUID優先）
+// 一意 ID（UUID 優先／fallback: 時刻+rand）
 const genId = (kind: NodeKind) => {
   const base = `node-${kind}-`;
   try {
     const c = (globalThis as unknown as { crypto?: Crypto & { randomUUID?: () => string } }).crypto;
     const uuid = c?.randomUUID?.();
     if (uuid) return base + uuid;
-  } catch { /* ignore */ }
+  } catch {
+    /* ignore */
+  }
   return base + Date.now() + '-' + Math.random().toString(36).slice(2, 8);
 };
 
@@ -74,7 +79,7 @@ type EditorState = {
 
   // actions
   select: (id: string | null) => void;     // 既存API（維持）
-  selectNode: (id: string | null) => void; // 新規：Canvas/LeftPane互換用エイリアス
+  selectNode: (id: string | null) => void; // UI 互換エイリアス
   updateNodeName: (id: string, name: string) => void;
   addNode: (kind: NodeKind) => string;
 
@@ -86,27 +91,28 @@ type EditorState = {
 
 export const useEditorStore = create<EditorState>((set, get) => {
   const initialDoc = loadDocument();
-  const initialSerialized = lastLoadedSerialized ?? serialize(initialDoc);
   const computeSerialized = () => serialize(get().doc);
+  const initialSerialized = lastLoadedSerialized ?? computeSerialized();
 
   return {
     doc: initialDoc,
     selectedId: null,
 
     select: (id) => set({ selectedId: id }),
-    selectNode: (id) => set({ selectedId: id }), // エイリアス
+    selectNode: (id) => set({ selectedId: id }), // alias
 
     updateNodeName: (id, name) => {
       const { doc } = get();
       const target = findNode(doc.nodes, id);
-      if (!target) return;
+      if (!target) return; // no-op
+
       const nodes = doc.nodes.map((n) => (n.id === id ? { ...n, name } : n));
       set({ doc: { ...doc, nodes } });
     },
 
     addNode: (kind) => {
       const { doc } = get();
-      // 表示名は連番のまま維持（UX的に分かりやすい）
+      // 表示名は連番でわかりやすく
       const count = doc.nodes.filter((n) => n.kind === kind).length + 1;
       const id = genId(kind);
       const node: Node =

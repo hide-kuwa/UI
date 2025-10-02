@@ -29,14 +29,14 @@ export function BuilderProvider({ children }: PropsWithChildren) {
 
   const addNode = useCallback(
     (kind: NodeKind) => {
-      addNodeStore(kind);
+      addNodeStore(kind); // 追加→選択は store 側で実施
     },
-    [addNodeStore]
+    [addNodeStore],
   );
 
   const value = useMemo(
     () => ({ addNode, attachNodeNameInput, focusNodeNameInput }),
-    [addNode, attachNodeNameInput, focusNodeNameInput]
+    [addNode, attachNodeNameInput, focusNodeNameInput],
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
