@@ -1,52 +1,79 @@
-"use client";
+'use client';
 
-import { ChangeEventHandler, useEffect, useMemo, useRef } from "react";
-import { useBuilder } from "./builderContext";
+import type { CSSProperties, ChangeEvent } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
+import { useEditorStore } from '../../../../../packages/core/store/editor.store';
+import { useBuilder } from './builderContext';
 
-const getNodeName = (nodes: ReturnType<typeof useBuilder>["nodes"], selectedId: string | null) => {
-  if (!selectedId) {
-    return "";
-  }
-  const node = nodes.find((item) => item.id === selectedId);
-  return node?.name ?? "";
+const paneStyle: CSSProperties = { display: 'flex', flexDirection: 'column', gap: 12 };
+
+const placeholderStyle: CSSProperties = { color: '#9ca3af', fontSize: 14, margin: 0 };
+
+const labelStyle: CSSProperties = {
+  fontSize: 12,
+  fontWeight: 600,
+  letterSpacing: '0.04em',
+  textTransform: 'uppercase',
 };
 
-const useNodeNameChange = (selectedId: string | null, renameNode: (id: string, name: string) => void) => {
-  const handleChange: ChangeEventHandler<HTMLInputElement> = (event) => {
-    if (!selectedId) {
-      return;
-    }
-    renameNode(selectedId, event.target.value);
-  };
-  return handleChange;
+const inputStyle: CSSProperties = {
+  padding: '8px 12px',
+  borderRadius: 6,
+  border: '1px solid #d1d5db',
+  fontSize: 14,
 };
 
-export const RightPane: React.FC = () => {
-  const { nodes, selectedId, renameNode, attachNodeNameInput, focusNodeNameInput } = useBuilder();
+const metaStyle: CSSProperties = { fontSize: 12, color: '#6b7280', margin: 0 };
+
+export default function RightPane() {
+  const selectedId = useEditorStore((s) => s.selectedId);
+  const doc = useEditorStore((s) => s.doc);
+  const updateNodeName = useEditorStore((s) => s.updateNodeName);
+
+  const { attachNodeNameInput, focusNodeNameInput } = useBuilder();
+
   const inputRef = useRef<HTMLInputElement>(null);
-  const nodeName = useMemo(() => getNodeName(nodes, selectedId), [nodes, selectedId]);
-  const handleChange = useNodeNameChange(selectedId, renameNode);
+  const selectedNode = useMemo(
+    () => (selectedId ? doc.nodes.find((n) => n.id === selectedId) ?? null : null),
+    [doc.nodes, selectedId]
+  );
 
   useEffect(() => {
     attachNodeNameInput(inputRef.current);
-    return () => {
-      attachNodeNameInput(null);
-    };
+    return () => attachNodeNameInput(null);
   }, [attachNodeNameInput]);
 
   useEffect(() => {
-    if (!selectedId) {
-      return;
-    }
-    focusNodeNameInput();
-  }, [selectedId, focusNodeNameInput]);
+    if (selectedNode) focusNodeNameInput();
+  }, [selectedNode, focusNodeNameInput]);
+
+  if (!selectedNode) {
+    return (
+      <aside style={paneStyle}>
+        <p style={placeholderStyle}>ノードを選択してください</p>
+      </aside>
+    );
+  }
+
+  const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
+    updateNodeName(selectedNode.id, e.target.value);
+  };
 
   return (
-    <aside className="right-pane">
-      <label className="node-name">
-        <span>ノード名</span>
-        <input ref={inputRef} value={nodeName} onChange={handleChange} />
+    <aside style={paneStyle}>
+      <label style={labelStyle} htmlFor="node-name">
+        ノード名
       </label>
+      <input
+        id="node-name"
+        ref={inputRef}
+        type="text"
+        value={selectedNode.name}
+        onChange={handleChange}
+        style={inputStyle}
+      />
+      <p style={metaStyle}>id: {selectedNode.id}</p>
+      <p style={metaStyle}>kind: {selectedNode.kind}</p>
     </aside>
   );
-};
+}
