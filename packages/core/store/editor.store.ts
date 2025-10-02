@@ -33,21 +33,24 @@ const createSampleDocument = (): Document => ({
 
 const loadDocument = (): Document => {
   if (typeof window === 'undefined') {
-    lastLoadedSerialized = null;
-    return createSampleDocument();
+    const doc = createSampleDocument();
+    lastLoadedSerialized = serialize(doc);
+    return doc;
   }
   const raw = window.localStorage.getItem(LS_KEY);
   if (!raw) {
-    lastLoadedSerialized = null;
-    return createSampleDocument();
+    const doc = createSampleDocument();
+    lastLoadedSerialized = serialize(doc);
+    return doc;
   }
   try {
     const doc = deserialize(raw);
     lastLoadedSerialized = raw;
     return doc;
   } catch {
-    lastLoadedSerialized = null;
-    return createSampleDocument();
+    const doc = createSampleDocument();
+    lastLoadedSerialized = serialize(doc);
+    return doc;
   }
 };
 
