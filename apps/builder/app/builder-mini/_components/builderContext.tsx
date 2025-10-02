@@ -4,9 +4,6 @@ import { createContext, useCallback, useContext, useMemo, useRef, type PropsWith
 import { useEditorStore } from '../../../../../packages/core/store/editor.store';
 import type { NodeKind } from '../../../../../packages/core/store/editor.store';
 
-/**
- * Builder の UI ヘルパーだけを提供（データは Zustand に一元化）
- */
 type BuilderContextValue = {
   addNode: (kind: NodeKind) => void;
   attachNodeNameInput: (input: HTMLInputElement | null) => void;
