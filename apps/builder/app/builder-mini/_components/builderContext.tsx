@@ -5,7 +5,7 @@ import { useEditorStore } from '../../../../../packages/core/store/editor.store'
 import type { NodeKind } from '../../../../../packages/core/store/editor.store';
 
 /**
- * Builder の UI ヘルパーだけを提供（データはZustandに一元化）
+ * Builder の UI ヘルパーだけを提供（データは Zustand に一元化）
  */
 type BuilderContextValue = {
   addNode: (kind: NodeKind) => void;
@@ -13,18 +13,18 @@ type BuilderContextValue = {
   focusNodeNameInput: () => void;
 };
 
-const BuilderContext = createContext<BuilderContextValue | null>(null);
+const Ctx = createContext<BuilderContextValue | null>(null);
 
 export function BuilderProvider({ children }: PropsWithChildren) {
   const addNodeStore = useEditorStore((s) => s.addNode);
-  const nodeNameInputRef = useRef<HTMLInputElement | null>(null);
+  const inputRef = useRef<HTMLInputElement | null>(null);
 
   const attachNodeNameInput = useCallback((el: HTMLInputElement | null) => {
-    nodeNameInputRef.current = el;
+    inputRef.current = el;
   }, []);
 
   const focusNodeNameInput = useCallback(() => {
-    const el = nodeNameInputRef.current;
+    const el = inputRef.current;
     if (!el) return;
     el.focus();
     el.select();
@@ -32,21 +32,21 @@ export function BuilderProvider({ children }: PropsWithChildren) {
 
   const addNode = useCallback(
     (kind: NodeKind) => {
-      addNodeStore(kind); // 追加→選択はstore側で実施
+      addNodeStore(kind); // 追加→選択は store 側で実施
     },
-    [addNodeStore]
+    [addNodeStore],
   );
 
   const value = useMemo(
     () => ({ addNode, attachNodeNameInput, focusNodeNameInput }),
-    [addNode, attachNodeNameInput, focusNodeNameInput]
+    [addNode, attachNodeNameInput, focusNodeNameInput],
   );
 
-  return <BuilderContext.Provider value={value}>{children}</BuilderContext.Provider>;
+  return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
 
 export function useBuilder() {
-  const ctx = useContext(BuilderContext);
-  if (!ctx) throw new Error('useBuilder must be used within <BuilderProvider>');
-  return ctx;
+  const v = useContext(Ctx);
+  if (!v) throw new Error('useBuilder must be used within <BuilderProvider>');
+  return v;
 }
