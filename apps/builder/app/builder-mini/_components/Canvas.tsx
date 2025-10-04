@@ -4,7 +4,7 @@ import { useCallback, useRef, useState } from 'react';
 import type {
   CSSProperties,
   DragEvent as ReactDragEvent,
-  KeyboardEvent,
+  KeyboardEvent as ReactKeyboardEvent,
   MouseEvent as ReactMouseEvent,
 } from 'react';
 
@@ -100,7 +100,7 @@ function CanvasNode({
   const startRef = useRef<{ x: number; y: number; w: number; h: number } | null>(null);
   const liveRef = useRef<{ w: number; h: number } | null>(null);
 
-  const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+  const handleKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>) => {
     if (event.key === 'Enter' || event.key === ' ') {
       event.preventDefault();
       onSelect();
