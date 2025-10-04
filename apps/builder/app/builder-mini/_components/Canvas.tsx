@@ -1,54 +1,42 @@
 'use client';
 
-import { useCallback, useRef, useState } from 'react';
-import type {
-  CSSProperties,
-  DragEvent as ReactDragEvent,
-  KeyboardEvent as ReactKeyboardEvent,
-  MouseEvent as ReactMouseEvent,
-} from 'react';
-
+import { useEffect, useRef, useState } from 'react';
+import type { CSSProperties, MouseEvent as ReactMouseEvent } from 'react';
 import { useEditorStore, type EditorNode } from '../../../../../packages/core/store/editor.store';
 
-const canvasStyle: CSSProperties = {
-  display: 'flex',
-  flexDirection: 'column',
-  gap: 16,
-  padding: 24,
+const wrapperStyle: CSSProperties = {
+  position: 'relative',
+  width: '100%',
+  height: '100%',
   borderRadius: 16,
   border: '1px dashed #d1d5db',
   backgroundColor: '#f9fafb',
-  minHeight: '100%',
+  overflow: 'hidden',
+};
+
+const stageStyleBase: CSSProperties = {
+  position: 'absolute',
+  left: 0,
+  top: 0,
+  width: 2000,
+  height: 1400,
+  backgroundImage: `
+    linear-gradient(#f3f4f6 1px, transparent 1px),
+    linear-gradient(90deg, #f3f4f6 1px, transparent 1px)
+  `,
+  backgroundSize: '8px 8px, 8px 8px',
+};
+
+const nodeBaseStyle: CSSProperties = {
+  position: 'absolute',
+  borderRadius: 12,
+  background: '#fff',
+  border: '1px solid transparent',
   boxSizing: 'border-box',
 };
 
-const emptyStateStyle: CSSProperties = { textAlign: 'center', color: '#9ca3af', fontSize: 14 };
-
-function getNodeContainerStyle(
-  active: boolean,
-  showTop: boolean,
-  showBottom: boolean,
-  dragging: boolean,
-): CSSProperties {
-  return {
-    padding: 12,
-    borderRadius: 12,
-    backgroundColor: active ? '#dbeafe' : '#ffffff',
-    border: active ? '1px solid #2563eb' : '1px solid transparent',
-    cursor: 'grab',
-    opacity: dragging ? 0.5 : 1,
-    position: 'relative',
-    boxShadow: showTop
-      ? 'inset 0 2px 0 0 #2563eb'
-      : showBottom
-      ? 'inset 0 -2px 0 0 #2563eb'
-      : 'none',
-  };
-}
-
 const textStyle: CSSProperties = { fontSize: 16, color: '#111827' };
-
-const buttonStyle: CSSProperties = {
+const buttonInner: CSSProperties = {
   display: 'inline-flex',
   alignItems: 'center',
   justifyContent: 'center',
@@ -60,7 +48,7 @@ const buttonStyle: CSSProperties = {
   fontSize: 14,
 };
 
-const resizeHandleStyle: CSSProperties = {
+const resizeHandle: CSSProperties = {
   position: 'absolute',
   right: 4,
   bottom: 4,
@@ -72,210 +60,218 @@ const resizeHandleStyle: CSSProperties = {
   cursor: 'nwse-resize',
 };
 
-function CanvasNode({
-  node,
-  active,
-  onSelect,
-  draggableProps,
-  showTop,
-  showBottom,
-  dragging,
-}: {
-  node: EditorNode;
-  active: boolean;
-  onSelect: () => void;
-  draggableProps: {
-    draggable: true;
-    onDragStart: (e: ReactDragEvent) => void;
-    onDragEnd: () => void;
-    onDragOver: (e: ReactDragEvent<HTMLDivElement>) => void;
-    onDragLeave: () => void;
-  };
-  showTop: boolean;
-  showBottom: boolean;
-  dragging: boolean;
-}) {
-  const updateNodeProps = useEditorStore((s) => s.updateNodeProps);
-  const [live, setLive] = useState<{ w: number; h: number } | null>(null);
-  const startRef = useRef<{ x: number; y: number; w: number; h: number } | null>(null);
-  const liveRef = useRef<{ w: number; h: number } | null>(null);
-
-  const handleKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>) => {
-    if (event.key === 'Enter' || event.key === ' ') {
-      event.preventDefault();
-      onSelect();
-    }
-  };
-
-  const startResize = useCallback(
-    (e: ReactMouseEvent) => {
-      e.stopPropagation();
-      e.preventDefault();
-      const w = (node.props as any)?.width ?? 240;
-      const h = (node.props as any)?.height ?? 80;
-      startRef.current = { x: e.clientX, y: e.clientY, w, h };
-      liveRef.current = { w, h };
-      setLive({ w, h });
-
-      const onMove = (ev: MouseEvent) => {
-        if (!startRef.current) return;
-        const dx = ev.clientX - startRef.current.x;
-        const dy = ev.clientY - startRef.current.y;
-        const nextW = Math.max(40, Math.round(startRef.current.w + dx));
-        const nextH = Math.max(32, Math.round(startRef.current.h + dy));
-        const next = { w: nextW, h: nextH };
-        liveRef.current = next;
-        setLive(next);
-      };
-
-      const onUp = () => {
-        const finalSize = liveRef.current;
-        if (startRef.current && finalSize) {
-          updateNodeProps(node.id, { width: finalSize.w, height: finalSize.h } as any);
-        }
-        startRef.current = null;
-        liveRef.current = null;
-        setLive(null);
-        window.removeEventListener('mousemove', onMove);
-        window.removeEventListener('mouseup', onUp);
-      };
-
-      window.addEventListener('mousemove', onMove);
-      window.addEventListener('mouseup', onUp);
-    },
-    [node.id, node.props, updateNodeProps],
-  );
-
-  const w = live?.w ?? (node.props as any)?.width ?? undefined;
-  const h = live?.h ?? (node.props as any)?.height ?? undefined;
-  const sizedStyle: CSSProperties = {
-    ...(w !== undefined ? { width: w } : {}),
-    ...(h !== undefined ? { height: h } : {}),
-  };
-
-  if (node.kind === 'text') {
-    const textProps = node.props ?? { text: node.name, fontSize: textStyle.fontSize ?? 16 };
-    const displayText = textProps.text ?? node.name;
-    const fontSize = textProps.fontSize ?? textStyle.fontSize ?? 16;
-
-    return (
-      <div
-        style={{ ...getNodeContainerStyle(active, showTop, showBottom, dragging), ...sizedStyle }}
-        role="button"
-        tabIndex={0}
-        onClick={onSelect}
-        onKeyDown={handleKeyDown}
-        {...draggableProps}
-      >
-        <p style={{ ...textStyle, fontSize }}>{displayText}</p>
-        <div style={resizeHandleStyle} onMouseDown={startResize} />
-      </div>
-    );
-  }
-
-  return (
-    <div
-      style={{ ...getNodeContainerStyle(active, showTop, showBottom, dragging), ...sizedStyle }}
-      role="button"
-      tabIndex={0}
-      onClick={onSelect}
-      onKeyDown={handleKeyDown}
-      {...draggableProps}
-    >
-      <button type="button" style={buttonStyle}>
-        {node.props?.label ?? node.name}
-      </button>
-      <div style={resizeHandleStyle} onMouseDown={startResize} />
-    </div>
-  );
-}
+const SNAP = 8;
+const snap = (v: number) => Math.round(v / SNAP) * SNAP;
 
 export default function Canvas() {
   const nodes = useEditorStore((s) => s.doc.nodes);
   const selectedId = useEditorStore((s) => s.selectedId);
   const selectNode = useEditorStore((s) => s.selectNode);
-  const reorderNode = useEditorStore((s) => s.reorderNode);
+  const updateNodeProps = useEditorStore((s) => s.updateNodeProps);
+  const duplicateNode = useEditorStore((s) => s.duplicateNode);
+  const nudgeNode = useEditorStore((s) => s.nudgeNode);
 
-  const [draggingId, setDraggingId] = useState<string | null>(null);
-  const [dropIndex, setDropIndex] = useState<number | null>(null);
+  // viewport
+  const [zoom, setZoom] = useState(1);
+  const [pan, setPan] = useState({ x: 0, y: 0 });
+  const [spaceHeld, setSpaceHeld] = useState(false);
+  const panningRef = useRef<{ x: number; y: number; sx: number; sy: number } | null>(null);
 
-  const onDragStart = (id: string) => (e: ReactDragEvent) => {
-    e.dataTransfer.setData('text/plain', id);
-    e.dataTransfer.effectAllowed = 'move';
-    setDraggingId(id);
-  };
+  // dragging/resizing one node
+  const dragRef = useRef<{ id: string; startX: number; startY: number; baseX: number; baseY: number; dup?: boolean } | null>(null);
+  const resizeRef = useRef<{ id: string; startX: number; startY: number; baseW: number; baseH: number } | null>(null);
 
-  const onDragEnd = () => {
-    setDraggingId(null);
-    setDropIndex(null);
-  };
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.code === 'Space') setSpaceHeld(e.type === 'keydown');
+      if (!selectedId) return;
+      if ((e.target as HTMLElement)?.isContentEditable) return;
+      const tag = (e.target as HTMLElement)?.tagName?.toLowerCase?.();
+      if (tag === 'input' || tag === 'textarea' || tag === 'select') return;
 
-  const onDragOverItem = (index: number) => (e: ReactDragEvent<HTMLDivElement>) => {
+      const step = e.shiftKey ? 10 : 1;
+      if (e.type === 'keydown') {
+        if (e.key === 'ArrowUp') { e.preventDefault(); nudgeNode(selectedId, 0, -step); }
+        if (e.key === 'ArrowDown') { e.preventDefault(); nudgeNode(selectedId, 0, step); }
+        if (e.key === 'ArrowLeft') { e.preventDefault(); nudgeNode(selectedId, -step, 0); }
+        if (e.key === 'ArrowRight') { e.preventDefault(); nudgeNode(selectedId, step, 0); }
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    window.addEventListener('keyup', onKey);
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      window.removeEventListener('keyup', onKey);
+    };
+  }, [selectedId, nudgeNode]);
+
+  const onWheel: React.WheelEventHandler = (e) => {
+    if (!(e.ctrlKey || e.metaKey)) return;
     e.preventDefault();
-    const rect = e.currentTarget.getBoundingClientRect();
-    const before = e.clientY - rect.top < rect.height / 2;
-    setDropIndex(before ? index : index + 1);
-    e.dataTransfer.dropEffect = 'move';
+    const delta = -e.deltaY;
+    const next = Math.min(2, Math.max(0.5, zoom + (delta > 0 ? 0.05 : -0.05)));
+    setZoom(next);
   };
 
-  const onDragLeaveItem = () => {
-    // no-op
+  const onStageMouseDown = (e: ReactMouseEvent) => {
+    if (!spaceHeld) return; // only pan with space
+    panningRef.current = { x: pan.x, y: pan.y, sx: e.clientX, sy: e.clientY };
+    const onMove = (ev: MouseEvent) => {
+      if (!panningRef.current) return;
+      setPan({
+        x: panningRef.current.x + (ev.clientX - panningRef.current.sx),
+        y: panningRef.current.y + (ev.clientY - panningRef.current.sy),
+      });
+    };
+    const onUp = () => {
+      panningRef.current = null;
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+    };
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
   };
 
-  const onDragOverCanvas = (e: ReactDragEvent) => {
-    e.preventDefault();
-    if (nodes.length > 0 && dropIndex == null) setDropIndex(nodes.length);
+  const startDrag = (node: EditorNode, e: ReactMouseEvent) => {
+    if (spaceHeld) return; // do not drag while panning
+    selectNode(node.id);
+    const props: any = node.props ?? {};
+    const dup = e.altKey || e.metaKey; // Alt(or Cmd) drag to duplicate
+    if (dup) {
+      const newId = duplicateNode(node.id);
+      const copy = nodes.find((n) => n.id === newId)!;
+      dragRef.current = {
+        id: newId,
+        startX: e.clientX,
+        startY: e.clientY,
+        baseX: (copy.props as any).x ?? 0,
+        baseY: (copy.props as any).y ?? 0,
+        dup: true,
+      };
+      selectNode(newId);
+    } else {
+      dragRef.current = {
+        id: node.id,
+        startX: e.clientX,
+        startY: e.clientY,
+        baseX: props.x ?? 0,
+        baseY: props.y ?? 0,
+      };
+    }
+
+    const onMove = (ev: MouseEvent) => {
+      if (!dragRef.current) return;
+      const dx = (ev.clientX - dragRef.current.startX) / zoom;
+      const dy = (ev.clientY - dragRef.current.startY) / zoom;
+      let nx = dragRef.current.baseX + dx;
+      let ny = dragRef.current.baseY + dy;
+
+      if (ev.shiftKey) {
+        // axis lock
+        if (Math.abs(dx) > Math.abs(dy)) ny = dragRef.current.baseY;
+        else nx = dragRef.current.baseX;
+      }
+
+      // snap
+      updateNodeProps(dragRef.current.id, { x: snap(nx), y: snap(ny) } as any);
+    };
+    const onUp = () => {
+      dragRef.current = null;
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+    };
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
   };
 
-  const onDropCanvas = (e: ReactDragEvent) => {
-    e.preventDefault();
-    const id = e.dataTransfer.getData('text/plain');
-    if (!id || dropIndex == null) return;
-
-    const from = nodes.findIndex((n) => n.id === id);
-    if (from === -1) return;
-
-    const to = dropIndex > from ? dropIndex - 1 : dropIndex;
-    if (to !== from) reorderNode(id, to);
-
-    setDraggingId(null);
-    setDropIndex(null);
+  const startResize = (node: EditorNode, e: ReactMouseEvent) => {
+    e.stopPropagation();
+    selectNode(node.id);
+    const props: any = node.props ?? {};
+    resizeRef.current = {
+      id: node.id,
+      startX: e.clientX,
+      startY: e.clientY,
+      baseW: props.width ?? 120,
+      baseH: props.height ?? 48,
+    };
+    const onMove = (ev: MouseEvent) => {
+      if (!resizeRef.current) return;
+      const dx = (ev.clientX - resizeRef.current.startX) / zoom;
+      const dy = (ev.clientY - resizeRef.current.startY) / zoom;
+      const w = Math.max(40, snap(resizeRef.current.baseW + dx));
+      const h = Math.max(32, snap(resizeRef.current.baseH + dy));
+      updateNodeProps(resizeRef.current.id, { width: w, height: h } as any);
+    };
+    const onUp = () => {
+      resizeRef.current = null;
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+    };
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
   };
-
-  if (nodes.length === 0) {
-    return (
-      <div style={canvasStyle}>
-        <p style={emptyStateStyle}>左のペインからノードを追加してください</p>
-      </div>
-    );
-  }
 
   return (
-    <div style={canvasStyle} onDragOver={onDragOverCanvas} onDrop={onDropCanvas}>
-      {nodes.map((node, index) => {
-        const active = node.id === selectedId;
-        const showTop = dropIndex === index;
-        const showBottom = dropIndex === index + 1;
-        const dragging = draggingId === node.id;
-        return (
-          <CanvasNode
-            key={node.id}
-            node={node}
-            active={active}
-            onSelect={() => selectNode(node.id)}
-            draggableProps={{
-              draggable: true,
-              onDragStart: onDragStart(node.id),
-              onDragEnd,
-              onDragOver: onDragOverItem(index),
-              onDragLeave: onDragLeaveItem,
-            }}
-            showTop={showTop}
-            showBottom={showBottom}
-            dragging={dragging}
-          />
-        );
-      })}
+    <div style={wrapperStyle} onWheel={onWheel}>
+      <div
+        style={{
+          ...stageStyleBase,
+          transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
+          transformOrigin: '0 0',
+          backgroundSize: `${8 * zoom}px ${8 * zoom}px, ${8 * zoom}px ${8 * zoom}px`,
+          cursor: spaceHeld ? 'grab' : 'default',
+        }}
+        onMouseDown={onStageMouseDown}
+      >
+        {nodes.map((node) => {
+          const p: any = node.props ?? {};
+          const x = p.x ?? 0;
+          const y = p.y ?? 0;
+          const w = p.width ?? (node.kind === 'text' ? 300 : 160);
+          const h = p.height ?? (node.kind === 'text' ? 80 : 40);
+          const active = node.id === selectedId;
+
+          return (
+            <div
+              key={node.id}
+              role="button"
+              tabIndex={0}
+              onMouseDown={(e) => {
+                // リサイズハンドルではない領域をドラッグ開始
+                const target = e.target as HTMLElement;
+                if (target.dataset?.resizeHandle === '1') return;
+                startDrag(node, e);
+              }}
+              onClick={() => selectNode(node.id)}
+              style={{
+                ...nodeBaseStyle,
+                left: x,
+                top: y,
+                width: w,
+                height: h,
+                border: active ? '1px solid #2563eb' : '1px solid transparent',
+                boxShadow: active ? '0 0 0 3px #dbeafe' : 'none',
+              }}
+            >
+              {node.kind === 'text' ? (
+                <div style={{ padding: 12, width: '100%', height: '100%', display: 'flex', alignItems: 'center' }}>
+                  <p style={{ ...textStyle, fontSize: (p.fontSize ?? 16) }}>{p.text ?? node.name}</p>
+                </div>
+              ) : (
+                <div style={{ width: '100%', height: '100%', display: 'grid', placeItems: 'center' }}>
+                  <button type="button" style={buttonInner}>{p.label ?? node.name}</button>
+                </div>
+              )}
+              <div
+                data-resize-handle="1"
+                style={resizeHandle}
+                onMouseDown={(ev) => startResize(node, ev)}
+              />
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }
