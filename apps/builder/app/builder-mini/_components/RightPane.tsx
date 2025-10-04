@@ -73,6 +73,15 @@ export default function RightPane() {
     updateNodeProps(selectedNode.id, { height: Math.max(32, value) } as any);
   };
 
+  const handleXChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const v = Number(e.target.value);
+    if (!Number.isNaN(v)) updateNodeProps(selectedNode.id, { x: v } as any);
+  };
+  const handleYChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const v = Number(e.target.value);
+    if (!Number.isNaN(v)) updateNodeProps(selectedNode.id, { y: v } as any);
+  };
+
   return (
     <aside style={paneStyle}>
       <label style={labelStyle} htmlFor="node-name">ノード名</label>
@@ -86,6 +95,26 @@ export default function RightPane() {
       />
       <p style={metaStyle}>id: {selectedNode.id}</p>
       <p style={metaStyle}>kind: {selectedNode.kind}</p>
+
+      <label style={labelStyle} htmlFor="node-x">X (px)</label>
+      <input
+        id="node-x"
+        type="number"
+        step={1}
+        value={(selectedNode.props as any).x ?? 0}
+        onChange={handleXChange}
+        style={inputStyle}
+      />
+
+      <label style={labelStyle} htmlFor="node-y">Y (px)</label>
+      <input
+        id="node-y"
+        type="number"
+        step={1}
+        value={(selectedNode.props as any).y ?? 0}
+        onChange={handleYChange}
+        style={inputStyle}
+      />
 
       <label style={labelStyle} htmlFor="node-width">幅 (px)</label>
       <input

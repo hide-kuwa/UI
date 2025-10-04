@@ -1,7 +1,6 @@
 // Responsibility: editor state (select/update) & persistence (localStorage). No UI imports.
 
 import { create, type StateCreator } from 'zustand';
-
 import { deserialize, serialize } from '../serialize/json';
 import type { Document, Node, NodeKind as CoreNodeKind } from '../types/node';
 
@@ -20,13 +19,13 @@ const createSampleDocument = (): Document => ({
       id: 'node-text-1',
       name: 'Hero Title',
       kind: 'text',
-      props: { text: 'Hello world', fontSize: 32, width: 480, height: 120 },
+      props: { text: 'Hello world', fontSize: 32, width: 480, height: 120, x: 40, y: 40 },
     },
     {
       id: 'node-button-1',
       name: 'Primary Action',
       kind: 'button',
-      props: { label: 'Click me', width: 200, height: 48 },
+      props: { label: 'Click me', width: 200, height: 48, x: 40, y: 200 },
     },
   ],
 });
@@ -37,14 +36,12 @@ const loadDocument = (): Document => {
     lastLoadedSerialized = serialize(doc);
     return doc;
   }
-
   const raw = window.localStorage.getItem(LS_KEY);
   if (!raw) {
     const doc = createSampleDocument();
     lastLoadedSerialized = serialize(doc);
     return doc;
   }
-
   try {
     const doc = deserialize(raw);
     lastLoadedSerialized = raw;
@@ -64,32 +61,20 @@ const genId = (kind: NodeKind): string => {
   try {
     const crypto = (globalThis as unknown as { crypto?: Crypto & { randomUUID?: () => string } }).crypto;
     const uuid = crypto?.randomUUID?.();
-    if (uuid) {
-      return prefix + uuid;
-    }
+    if (uuid) return prefix + uuid;
   } catch {
     // ignore
   }
-
   return prefix + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 8);
 };
 
 const createNodeForKind = (kind: NodeKind, id: string, index: number): Node => {
+  const yBase = 40 + (index - 1) * 100;
   switch (kind) {
     case 'text':
-      return {
-        id,
-        name: `Text ${index}`,
-        kind,
-        props: { text: 'New Text', fontSize: 16, width: 300, height: 80 },
-      };
+      return { id, name: `Text ${index}`, kind, props: { text: 'New Text', fontSize: 16, width: 300, height: 80, x: 40, y: yBase } };
     case 'button':
-      return {
-        id,
-        name: `Button ${index}`,
-        kind,
-        props: { label: 'New Button', width: 160, height: 40 },
-      };
+      return { id, name: `Button ${index}`, kind, props: { label: 'New Button', width: 160, height: 40, x: 40, y: yBase } };
     case 'header':
       return { id, name: `Header ${index}`, kind, props: { height: 64, background: '#ffffff' } };
     case 'footer':
@@ -97,16 +82,10 @@ const createNodeForKind = (kind: NodeKind, id: string, index: number): Node => {
     case 'sidebar':
       return { id, name: `Sidebar ${index}`, kind, props: { side: 'left', width: 280, background: '#f9fafb' } };
     case 'hud':
-      return {
-        id,
-        name: `HUD ${index}`,
-        kind,
-        props: { position: 'top-right', offsetX: 16, offsetY: 16, zIndex: 10 },
-      };
+      return { id, name: `HUD ${index}`, kind, props: { position: 'top-right', offsetX: 16, offsetY: 16, zIndex: 10 } };
     case 'image':
       return { id, name: `Image ${index}`, kind, props: { src: '', width: 320, height: 180, fit: 'contain' } };
   }
-
   const exhaustiveCheck: never = kind;
   return exhaustiveCheck;
 };
@@ -128,8 +107,8 @@ type EditorState = {
   updateNodeProps: (
     id: string,
     props: Partial<
-      | { text: string; fontSize: number; width: number; height: number }
-      | { label: string; width: number; height: number }
+      | { text: string; fontSize: number; width: number; height: number; x: number; y: number }
+      | { label: string; width: number; height: number; x: number; y: number }
     >,
   ) => void;
 
@@ -137,6 +116,8 @@ type EditorState = {
   duplicateNode: (id: string) => string;
   moveNode: (id: string, direction: 'up' | 'down') => void;
   reorderNode: (id: string, toIndex: number) => void;
+
+  nudgeNode: (id: string, dx: number, dy: number) => void;
 };
 
 export type EditorStoreState = EditorState;
@@ -157,7 +138,6 @@ const editorStoreCreator: StateCreator<EditorState> = (set, get) => {
       const { doc } = get();
       const target = findNode(doc.nodes, id);
       if (!target) return;
-
       const nodes = doc.nodes.map((node) => (node.id === id ? { ...node, name } : node));
       set({ doc: { ...doc, nodes } });
     },
@@ -167,54 +147,37 @@ const editorStoreCreator: StateCreator<EditorState> = (set, get) => {
       const target = findNode(doc.nodes, id);
       if (!target) return;
 
+      const nextProps = { ...target.props } as any;
+      let changed = false;
+
+      // common fields
+      (['width', 'height', 'x', 'y'] as const).forEach((k) => {
+        const v = (props as any)[k];
+        if (v !== undefined && (nextProps as any)[k] !== v) {
+          (nextProps as any)[k] = v;
+          changed = true;
+        }
+      });
+
       if (target.kind === 'text') {
-        const nextProps = { ...target.props };
-        let changed = false;
-
-        if (props.text !== undefined && props.text !== nextProps.text) {
-          nextProps.text = props.text;
+        if (props && 'text' in props && props.text !== (nextProps as any).text) {
+          (nextProps as any).text = props.text;
           changed = true;
         }
-        if (props.fontSize !== undefined && props.fontSize !== nextProps.fontSize) {
-          nextProps.fontSize = props.fontSize;
+        if (props && 'fontSize' in props && props.fontSize !== (nextProps as any).fontSize) {
+          (nextProps as any).fontSize = props.fontSize;
           changed = true;
         }
-        if (props.width !== undefined && props.width !== nextProps.width) {
-          nextProps.width = props.width;
+      } else if (target.kind === 'button') {
+        if (props && 'label' in props && props.label !== (nextProps as any).label) {
+          (nextProps as any).label = props.label;
           changed = true;
         }
-        if (props.height !== undefined && props.height !== nextProps.height) {
-          nextProps.height = props.height;
-          changed = true;
-        }
-        if (!changed) return;
-
-        const nodes = doc.nodes.map((n) => (n.id === id ? { ...n, props: nextProps } : n));
-        set({ doc: { ...doc, nodes } });
-        return;
       }
 
-      if (target.kind === 'button') {
-        const nextProps = { ...target.props };
-        let changed = false;
-
-        if (props.label !== undefined && props.label !== nextProps.label) {
-          nextProps.label = props.label;
-          changed = true;
-        }
-        if (props.width !== undefined && props.width !== nextProps.width) {
-          nextProps.width = props.width;
-          changed = true;
-        }
-        if (props.height !== undefined && props.height !== nextProps.height) {
-          nextProps.height = props.height;
-          changed = true;
-        }
-        if (!changed) return;
-
-        const nodes = doc.nodes.map((n) => (n.id === id ? { ...n, props: nextProps } : n));
-        set({ doc: { ...doc, nodes } });
-      }
+      if (!changed) return;
+      const nodes = doc.nodes.map((n) => (n.id === id ? { ...n, props: nextProps } : n));
+      set({ doc: { ...doc, nodes } });
     },
 
     addNode: (kind) => {
@@ -222,12 +185,7 @@ const editorStoreCreator: StateCreator<EditorState> = (set, get) => {
       const nextIndex = doc.nodes.filter((node) => node.kind === kind).length + 1;
       const id = genId(kind);
       const node = createNodeForKind(kind, id, nextIndex);
-
-      set((state) => ({
-        doc: { ...state.doc, nodes: [...state.doc.nodes, node] },
-        selectedId: id,
-      }));
-
+      set((state) => ({ doc: { ...state.doc, nodes: [...state.doc.nodes, node] }, selectedId: id }));
       return id;
     },
 
@@ -235,43 +193,30 @@ const editorStoreCreator: StateCreator<EditorState> = (set, get) => {
       const { doc, selectedId } = get();
       const index = doc.nodes.findIndex((n) => n.id === id);
       if (index === -1) return;
-
       const nextNodes = doc.nodes.filter((n) => n.id !== id);
-
       let nextSelected = selectedId;
       if (selectedId === id) {
         const next = nextNodes[index] ?? nextNodes[index - 1] ?? null;
         nextSelected = next ? next.id : null;
       }
-
-      set({
-        doc: { ...doc, nodes: nextNodes },
-        selectedId: nextSelected ?? null,
-      });
+      set({ doc: { ...doc, nodes: nextNodes }, selectedId: nextSelected ?? null });
     },
 
     duplicateNode: (id) => {
       const { doc } = get();
       const index = doc.nodes.findIndex((n) => n.id === id);
       if (index === -1) return id;
-
       const target = doc.nodes[index];
       const newId = genId(target.kind);
       const duplicated: Node = {
         ...target,
         id: newId,
         name: `${target.name} Copy`,
-        props: { ...target.props },
+        props: { ...target.props, x: (target.props as any).x + 16, y: (target.props as any).y + 16 },
       };
-
       const nextNodes = [...doc.nodes];
       nextNodes.splice(index + 1, 0, duplicated);
-
-      set({
-        doc: { ...doc, nodes: nextNodes },
-        selectedId: newId,
-      });
-
+      set({ doc: { ...doc, nodes: nextNodes }, selectedId: newId });
       return newId;
     },
 
@@ -279,14 +224,11 @@ const editorStoreCreator: StateCreator<EditorState> = (set, get) => {
       const { doc } = get();
       const index = doc.nodes.findIndex((n) => n.id === id);
       if (index === -1) return;
-
       const targetIndex = direction === 'up' ? index - 1 : index + 1;
       if (targetIndex < 0 || targetIndex >= doc.nodes.length) return;
-
       const nextNodes = [...doc.nodes];
       const [node] = nextNodes.splice(index, 1);
       nextNodes.splice(targetIndex, 0, node);
-
       set({ doc: { ...doc, nodes: nextNodes } });
     },
 
@@ -294,20 +236,31 @@ const editorStoreCreator: StateCreator<EditorState> = (set, get) => {
       const { doc } = get();
       const fromIndex = doc.nodes.findIndex((n) => n.id === id);
       if (fromIndex === -1) return;
-
       const clamped = Math.max(0, Math.min(toIndex, doc.nodes.length - 1));
       if (fromIndex === clamped) return;
-
       const next = [...doc.nodes];
       const [moved] = next.splice(fromIndex, 1);
       next.splice(clamped, 0, moved);
-
       set({ doc: { ...doc, nodes: next } });
+    },
+
+    nudgeNode: (id, dx, dy) => {
+      const { doc } = get();
+      const node = findNode(doc.nodes, id);
+      if (!node) return;
+      const p: any = node.props ?? {};
+      set({
+        doc: {
+          ...doc,
+          nodes: doc.nodes.map((n) =>
+            n.id === id ? { ...n, props: { ...p, x: (p.x ?? 0) + dx, y: (p.y ?? 0) + dy } } : n,
+          ),
+        },
+      });
     },
 
     saveNow: () => {
       const serialized = computeSerialized();
-
       if (typeof window !== 'undefined') {
         try {
           window.localStorage.setItem(LS_KEY, serialized);
@@ -317,7 +270,6 @@ const editorStoreCreator: StateCreator<EditorState> = (set, get) => {
         }
       }
     },
-
     lastSaved: initialSerialized,
     computeSerialized,
     isDirty: () => computeSerialized() !== get().lastSaved,
