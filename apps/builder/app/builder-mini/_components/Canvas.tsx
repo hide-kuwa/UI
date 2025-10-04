@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useEffect, useRef, useState } from 'react';
 import type { CSSProperties, MouseEvent as ReactMouseEvent } from 'react';
@@ -49,8 +49,9 @@ const buttonInner: CSSProperties = {
 };
 
 const SNAP = 8;
-const RESIZE_ZONE = 12; // 右下隅からこのpx以内ならリサイズ
-const snap = (v: number) => Math.round(v / SNAP) * SNAP;
+const RESIZE_ZONE = 12; // 右下隅のホットゾーン
+const GUIDE_TOL = 6;    // スナップ許容差（画面上のピクセル基準）
+const snapGrid = (v: number) => Math.round(v / SNAP) * SNAP;
 
 export default function Canvas() {
   const nodes = useEditorStore((s) => s.doc.nodes);
@@ -66,6 +67,9 @@ export default function Canvas() {
   const [spaceHeld, setSpaceHeld] = useState(false);
   const panningRef = useRef<{ x: number; y: number; sx: number; sy: number } | null>(null);
 
+  // ガイド線の状態
+  const [guide, setGuide] = useState<{ x: number | null; y: number | null }>({ x: null, y: null });
+
   // ドラッグ/リサイズの状態
   const dragRef = useRef<{
     id: string; startX: number; startY: number; baseX: number; baseY: number; dup?: boolean
@@ -74,11 +78,21 @@ export default function Canvas() {
     id: string; startX: number; startY: number; baseW: number; baseH: number
   } | null>(null);
 
-  // Spaceでパン、矢印キーでナッジ
+  // Spaceでパン、矢印キーでナッジ、Cmd/Ctrl +/-/0 でズーム
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.code === 'Space') setSpaceHeld(e.type === 'keydown');
 
+      // ズーム系
+      if (e.ctrlKey || e.metaKey) {
+        if (e.type === 'keydown') {
+          if (e.key === '=' || e.key === '+') { e.preventDefault(); setZoom((z) => Math.min(2, z + 0.1)); return; }
+          if (e.key === '-') { e.preventDefault(); setZoom((z) => Math.max(0.5, z - 0.1)); return; }
+          if (e.key === '0') { e.preventDefault(); setZoom(1); setPan({ x: 0, y: 0 }); return; }
+        }
+      }
+
+      // ナッジ
       if (!selectedId) return;
       const el = e.target as HTMLElement | null;
       if (!el) return;
@@ -88,10 +102,10 @@ export default function Canvas() {
 
       const step = e.shiftKey ? 10 : 1;
       if (e.type === 'keydown') {
-        if (e.key === 'ArrowUp') { e.preventDefault(); nudgeNode(selectedId, 0, -step); }
-        if (e.key === 'ArrowDown') { e.preventDefault(); nudgeNode(selectedId, 0, step); }
-        if (e.key === 'ArrowLeft') { e.preventDefault(); nudgeNode(selectedId, -step, 0); }
-        if (e.key === 'ArrowRight') { e.preventDefault(); nudgeNode(selectedId, step, 0); }
+        if (e.key === 'ArrowUp')    { e.preventDefault(); nudgeNode(selectedId, 0, -step); }
+        if (e.key === 'ArrowDown')  { e.preventDefault(); nudgeNode(selectedId, 0,  step); }
+        if (e.key === 'ArrowLeft')  { e.preventDefault(); nudgeNode(selectedId, -step, 0); }
+        if (e.key === 'ArrowRight') { e.preventDefault(); nudgeNode(selectedId,  step, 0); }
       }
     };
     window.addEventListener('keydown', onKey);
@@ -131,7 +145,122 @@ export default function Canvas() {
     window.addEventListener('mouseup', onUp);
   };
 
-  // ノードドラッグ（Alt/Cmdで複製ドラッグ）
+  // --- スマートガイド用ユーティリティ ---
+  const buildGuideLines = (excludeId?: string) => {
+    const xs: number[] = [];
+    const ys: number[] = [];
+    nodes.forEach((n) => {
+      if (n.id === excludeId) return;
+      const p: any = n.props ?? {};
+      const x = p.x ?? 0;
+      const y = p.y ?? 0;
+      const w = p.width ?? (n.kind === 'text' ? 300 : 160);
+      const h = p.height ?? (n.kind === 'text' ? 80 : 40);
+      xs.push(x, x + w / 2, x + w);
+      ys.push(y, y + h / 2, y + h);
+    });
+    return { xs, ys };
+  };
+
+  const snapToGuidesPos = (
+    nx: number,
+    ny: number,
+    w: number,
+    h: number,
+    excludeId: string,
+  ) => {
+    const tol = GUIDE_TOL / zoom; // 画面上の見かけピクセル基準
+    const { xs, ys } = buildGuideLines(excludeId);
+
+    let snappedX: number | null = null;
+    let snappedY: number | null = null;
+    let bestDx = tol + 1;
+    let bestDy = tol + 1;
+
+    // x方向（左/中央/右）候補
+    const candX = [
+      { kind: 'left', val: nx },
+      { kind: 'center', val: nx + w / 2 },
+      { kind: 'right', val: nx + w },
+    ];
+    xs.forEach((gx) => {
+      candX.forEach((c) => {
+        const d = Math.abs(c.val - gx);
+        if (d <= tol && d < bestDx) {
+          bestDx = d;
+          snappedX = gx;
+          if (c.kind === 'left')  nx = gx;
+          if (c.kind === 'center') nx = gx - w / 2;
+          if (c.kind === 'right') nx = gx - w;
+        }
+      });
+    });
+
+    // y方向（上/中央/下）候補
+    const candY = [
+      { kind: 'top', val: ny },
+      { kind: 'center', val: ny + h / 2 },
+      { kind: 'bottom', val: ny + h },
+    ];
+    ys.forEach((gy) => {
+      candY.forEach((c) => {
+        const d = Math.abs(c.val - gy);
+        if (d <= tol && d < bestDy) {
+          bestDy = d;
+          snappedY = gy;
+          if (c.kind === 'top')    ny = gy;
+          if (c.kind === 'center') ny = gy - h / 2;
+          if (c.kind === 'bottom') ny = gy - h;
+        }
+      });
+    });
+
+    return { nx, ny, guideX: snappedX, guideY: snappedY };
+  };
+
+  const snapToGuidesSize = (
+    x: number,
+    y: number,
+    w: number,
+    h: number,
+    excludeId: string,
+  ) => {
+    const tol = GUIDE_TOL / zoom;
+    const { xs, ys } = buildGuideLines(excludeId);
+
+    let snappedX: number | null = null;
+    let snappedY: number | null = null;
+
+    // 右端（x + w）をスナップ
+    let right = x + w;
+    let bestDx = tol + 1;
+    xs.forEach((gx) => {
+      const d = Math.abs(gx - right);
+      if (d <= tol && d < bestDx) {
+        bestDx = d;
+        snappedX = gx;
+        right = gx;
+      }
+    });
+    w = Math.max(40, right - x);
+
+    // 下端（y + h）をスナップ
+    let bottom = y + h;
+    let bestDy = tol + 1;
+    ys.forEach((gy) => {
+      const d = Math.abs(gy - bottom);
+      if (d <= tol && d < bestDy) {
+        bestDy = d;
+        snappedY = gy;
+        bottom = gy;
+      }
+    });
+    h = Math.max(32, bottom - y);
+
+    return { w, h, guideX: snappedX, guideY: snappedY };
+  };
+
+  // ノードドラッグ（Alt/Cmdで複製ドラッグ、Shiftで軸ロック）
   const startDrag = (node: EditorNode, e: ReactMouseEvent) => {
     if (spaceHeld) return; // パン中は無効
     selectNode(node.id);
@@ -165,6 +294,11 @@ export default function Canvas() {
       if (!dragRef.current) return;
       const dx = (ev.clientX - dragRef.current.startX) / zoom;
       const dy = (ev.clientY - dragRef.current.startY) / zoom;
+      const thisNode = nodes.find((n) => n.id === dragRef.current!.id);
+      const p: any = thisNode?.props ?? {};
+      const w = p.width ?? (thisNode?.kind === 'text' ? 300 : 160);
+      const h = p.height ?? (thisNode?.kind === 'text' ? 80 : 40);
+
       let nx = dragRef.current.baseX + dx;
       let ny = dragRef.current.baseY + dy;
 
@@ -174,10 +308,21 @@ export default function Canvas() {
         else nx = dragRef.current.baseX;
       }
 
-      updateNodeProps(dragRef.current.id, { x: snap(nx), y: snap(ny) } as any);
+      // 近接スナップ（他ノード）優先
+      const snapped = snapToGuidesPos(nx, ny, w, h, dragRef.current.id);
+      nx = snapped.nx;
+      ny = snapped.ny;
+      setGuide({ x: snapped.guideX ?? null, y: snapped.guideY ?? null });
+
+      // ガイドが出ていない軸はグリッドスナップ
+      if (snapped.guideX == null) nx = snapGrid(nx);
+      if (snapped.guideY == null) ny = snapGrid(ny);
+
+      updateNodeProps(dragRef.current.id, { x: nx, y: ny } as any);
     };
     const onUp = () => {
       dragRef.current = null;
+      setGuide({ x: null, y: null });
       window.removeEventListener('mousemove', onMove);
       window.removeEventListener('mouseup', onUp);
     };
@@ -190,6 +335,9 @@ export default function Canvas() {
     e.stopPropagation();
     selectNode(node.id);
     const props: any = node.props ?? {};
+    const x = props.x ?? 0;
+    const y = props.y ?? 0;
+
     resizeRef.current = {
       id: node.id,
       startX: e.clientX,
@@ -201,12 +349,25 @@ export default function Canvas() {
       if (!resizeRef.current) return;
       const dx = (ev.clientX - resizeRef.current.startX) / zoom;
       const dy = (ev.clientY - resizeRef.current.startY) / zoom;
-      const w = Math.max(40, snap(resizeRef.current.baseW + dx));
-      const h = Math.max(32, snap(resizeRef.current.baseH + dy));
+
+      let w = Math.max(40, resizeRef.current.baseW + dx);
+      let h = Math.max(32, resizeRef.current.baseH + dy);
+
+      // 近接スナップ（右/下端）
+      const snapped = snapToGuidesSize(x, y, w, h, resizeRef.current.id);
+      w = snapped.w;
+      h = snapped.h;
+      setGuide({ x: snapped.guideX ?? null, y: snapped.guideY ?? null });
+
+      // ガイドが出ていない軸はグリッドスナップ
+      if (snapped.guideX == null) w = Math.max(40, snapGrid(w));
+      if (snapped.guideY == null) h = Math.max(32, snapGrid(h));
+
       updateNodeProps(resizeRef.current.id, { width: w, height: h } as any);
     };
     const onUp = () => {
       resizeRef.current = null;
+      setGuide({ x: null, y: null });
       window.removeEventListener('mousemove', onMove);
       window.removeEventListener('mouseup', onUp);
     };
@@ -226,6 +387,34 @@ export default function Canvas() {
         }}
         onMouseDown={onStageMouseDown}
       >
+        {/* ガイド線（ステージ内に描画） */}
+        {guide.x != null && (
+          <div
+            style={{
+              position: 'absolute',
+              left: guide.x,
+              top: 0,
+              width: 1,
+              height: '100%',
+              background: '#f43f5e',
+              pointerEvents: 'none',
+            }}
+          />
+        )}
+        {guide.y != null && (
+          <div
+            style={{
+              position: 'absolute',
+              top: guide.y,
+              left: 0,
+              height: 1,
+              width: '100%',
+              background: '#f43f5e',
+              pointerEvents: 'none',
+            }}
+          />
+        )}
+
         {nodes.map((node) => {
           const p: any = node.props ?? {};
           const x = p.x ?? 0;
@@ -241,7 +430,7 @@ export default function Canvas() {
               tabIndex={0}
               onMouseDown={(e) => {
                 if (spaceHeld) return;
-                // 右下のホットゾーン判定
+                // 右下ホットゾーン判定
                 const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
                 const localX = e.clientX - rect.left;
                 const localY = e.clientY - rect.top;
@@ -271,7 +460,6 @@ export default function Canvas() {
                   <button type="button" style={buttonInner}>{p.label ?? node.name}</button>
                 </div>
               )}
-              {/* 見えるリサイズハンドルは置かない */}
             </div>
           );
         })}
