@@ -1,4 +1,4 @@
-// Responsibility: editor state (select/update) & persistence (localStorage). No UI imports.
+﻿// Responsibility: editor state (select/update) & persistence (localStorage). No UI imports.
 
 import { create, type StateCreator } from 'zustand';
 import { deserialize, serialize } from '../serialize/json';
@@ -62,9 +62,7 @@ const genId = (kind: NodeKind): string => {
     const crypto = (globalThis as unknown as { crypto?: Crypto & { randomUUID?: () => string } }).crypto;
     const uuid = crypto?.randomUUID?.();
     if (uuid) return prefix + uuid;
-  } catch {
-    // ignore
-  }
+  } catch {/* ignore */}
   return prefix + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 8);
 };
 
@@ -150,27 +148,27 @@ const editorStoreCreator: StateCreator<EditorState> = (set, get) => {
       const nextProps = { ...target.props } as any;
       let changed = false;
 
-      // common fields
+      // 共通（サイズ/座標）
       (['width', 'height', 'x', 'y'] as const).forEach((k) => {
         const v = (props as any)[k];
-        if (v !== undefined && (nextProps as any)[k] !== v) {
-          (nextProps as any)[k] = v;
+        if (v !== undefined && nextProps[k] !== v) {
+          nextProps[k] = v;
           changed = true;
         }
       });
 
       if (target.kind === 'text') {
-        if (props && 'text' in props && props.text !== (nextProps as any).text) {
-          (nextProps as any).text = props.text;
+        if ('text' in (props as any) && nextProps.text !== (props as any).text) {
+          nextProps.text = (props as any).text;
           changed = true;
         }
-        if (props && 'fontSize' in props && props.fontSize !== (nextProps as any).fontSize) {
-          (nextProps as any).fontSize = props.fontSize;
+        if ('fontSize' in (props as any) && nextProps.fontSize !== (props as any).fontSize) {
+          nextProps.fontSize = (props as any).fontSize;
           changed = true;
         }
       } else if (target.kind === 'button') {
-        if (props && 'label' in props && props.label !== (nextProps as any).label) {
-          (nextProps as any).label = props.label;
+        if ('label' in (props as any) && nextProps.label !== (props as any).label) {
+          nextProps.label = (props as any).label;
           changed = true;
         }
       }
@@ -194,6 +192,7 @@ const editorStoreCreator: StateCreator<EditorState> = (set, get) => {
       const index = doc.nodes.findIndex((n) => n.id === id);
       if (index === -1) return;
       const nextNodes = doc.nodes.filter((n) => n.id !== id);
+
       let nextSelected = selectedId;
       if (selectedId === id) {
         const next = nextNodes[index] ?? nextNodes[index - 1] ?? null;
@@ -206,14 +205,16 @@ const editorStoreCreator: StateCreator<EditorState> = (set, get) => {
       const { doc } = get();
       const index = doc.nodes.findIndex((n) => n.id === id);
       if (index === -1) return id;
+
       const target = doc.nodes[index];
       const newId = genId(target.kind);
       const duplicated: Node = {
         ...target,
         id: newId,
         name: `${target.name} Copy`,
-        props: { ...target.props, x: (target.props as any).x + 16, y: (target.props as any).y + 16 },
+        props: { ...(target.props as any), x: ((target.props as any).x ?? 0) + 16, y: ((target.props as any).y ?? 0) + 16 },
       };
+
       const nextNodes = [...doc.nodes];
       nextNodes.splice(index + 1, 0, duplicated);
       set({ doc: { ...doc, nodes: nextNodes }, selectedId: newId });
@@ -224,8 +225,10 @@ const editorStoreCreator: StateCreator<EditorState> = (set, get) => {
       const { doc } = get();
       const index = doc.nodes.findIndex((n) => n.id === id);
       if (index === -1) return;
+
       const targetIndex = direction === 'up' ? index - 1 : index + 1;
       if (targetIndex < 0 || targetIndex >= doc.nodes.length) return;
+
       const nextNodes = [...doc.nodes];
       const [node] = nextNodes.splice(index, 1);
       nextNodes.splice(targetIndex, 0, node);
@@ -236,8 +239,10 @@ const editorStoreCreator: StateCreator<EditorState> = (set, get) => {
       const { doc } = get();
       const fromIndex = doc.nodes.findIndex((n) => n.id === id);
       if (fromIndex === -1) return;
+
       const clamped = Math.max(0, Math.min(toIndex, doc.nodes.length - 1));
       if (fromIndex === clamped) return;
+
       const next = [...doc.nodes];
       const [moved] = next.splice(fromIndex, 1);
       next.splice(clamped, 0, moved);

@@ -1,6 +1,6 @@
-'use client';
+﻿'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { CSSProperties, MouseEvent as ReactMouseEvent } from 'react';
 import { useEditorStore, type EditorNode } from '../../../../../packages/core/store/editor.store';
 
@@ -77,16 +77,24 @@ export default function Canvas() {
   const [spaceHeld, setSpaceHeld] = useState(false);
   const panningRef = useRef<{ x: number; y: number; sx: number; sy: number } | null>(null);
 
-  // dragging/resizing one node
-  const dragRef = useRef<{ id: string; startX: number; startY: number; baseX: number; baseY: number; dup?: boolean } | null>(null);
-  const resizeRef = useRef<{ id: string; startX: number; startY: number; baseW: number; baseH: number } | null>(null);
+  // drag/resize
+  const dragRef = useRef<{
+    id: string; startX: number; startY: number; baseX: number; baseY: number; dup?: boolean
+  } | null>(null);
+  const resizeRef = useRef<{
+    id: string; startX: number; startY: number; baseW: number; baseH: number
+  } | null>(null);
 
+  // Arrow キーでナッジ、Space でパン
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.code === 'Space') setSpaceHeld(e.type === 'keydown');
+
       if (!selectedId) return;
-      if ((e.target as HTMLElement)?.isContentEditable) return;
-      const tag = (e.target as HTMLElement)?.tagName?.toLowerCase?.();
+      const el = e.target as HTMLElement | null;
+      if (!el) return;
+      if (el.isContentEditable) return;
+      const tag = el.tagName?.toLowerCase?.();
       if (tag === 'input' || tag === 'textarea' || tag === 'select') return;
 
       const step = e.shiftKey ? 10 : 1;
@@ -105,6 +113,7 @@ export default function Canvas() {
     };
   }, [selectedId, nudgeNode]);
 
+  // Ctrl/Cmd + ホイールでズーム
   const onWheel: React.WheelEventHandler = (e) => {
     if (!(e.ctrlKey || e.metaKey)) return;
     e.preventDefault();
@@ -113,8 +122,9 @@ export default function Canvas() {
     setZoom(next);
   };
 
+  // Space 押下時のみパン
   const onStageMouseDown = (e: ReactMouseEvent) => {
-    if (!spaceHeld) return; // only pan with space
+    if (!spaceHeld) return;
     panningRef.current = { x: pan.x, y: pan.y, sx: e.clientX, sy: e.clientY };
     const onMove = (ev: MouseEvent) => {
       if (!panningRef.current) return;
@@ -132,20 +142,23 @@ export default function Canvas() {
     window.addEventListener('mouseup', onUp);
   };
 
+  // ノード移動（Alt/Cmdドラッグで複製して移動）
   const startDrag = (node: EditorNode, e: ReactMouseEvent) => {
-    if (spaceHeld) return; // do not drag while panning
+    if (spaceHeld) return; // パン中はドラッグ無効
     selectNode(node.id);
+
     const props: any = node.props ?? {};
-    const dup = e.altKey || e.metaKey; // Alt(or Cmd) drag to duplicate
+    const dup = e.altKey || e.metaKey;
     if (dup) {
       const newId = duplicateNode(node.id);
       const copy = nodes.find((n) => n.id === newId)!;
+      const cp: any = copy.props ?? {};
       dragRef.current = {
         id: newId,
         startX: e.clientX,
         startY: e.clientY,
-        baseX: (copy.props as any).x ?? 0,
-        baseY: (copy.props as any).y ?? 0,
+        baseX: cp.x ?? 0,
+        baseY: cp.y ?? 0,
         dup: true,
       };
       selectNode(newId);
@@ -166,13 +179,12 @@ export default function Canvas() {
       let nx = dragRef.current.baseX + dx;
       let ny = dragRef.current.baseY + dy;
 
+      // Shift で軸ロック
       if (ev.shiftKey) {
-        // axis lock
         if (Math.abs(dx) > Math.abs(dy)) ny = dragRef.current.baseY;
         else nx = dragRef.current.baseX;
       }
 
-      // snap
       updateNodeProps(dragRef.current.id, { x: snap(nx), y: snap(ny) } as any);
     };
     const onUp = () => {
@@ -184,6 +196,7 @@ export default function Canvas() {
     window.addEventListener('mouseup', onUp);
   };
 
+  // リサイズ
   const startResize = (node: EditorNode, e: ReactMouseEvent) => {
     e.stopPropagation();
     selectNode(node.id);
@@ -238,7 +251,6 @@ export default function Canvas() {
               role="button"
               tabIndex={0}
               onMouseDown={(e) => {
-                // リサイズハンドルではない領域をドラッグ開始
                 const target = e.target as HTMLElement;
                 if (target.dataset?.resizeHandle === '1') return;
                 startDrag(node, e);
