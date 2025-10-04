@@ -3,6 +3,8 @@
 import type { CSSProperties } from 'react';
 import HeaderBar from './_components/HeaderBar';
 import RightPane from './_components/RightPane';
+import Canvas from './_components/Canvas';
+import AutoSaveEffect from './_components/AutoSaveEffect';
 import { BuilderProvider } from './_components/builderContext';
 
 type PaneProps = { title: string };
@@ -48,11 +50,19 @@ function PlaceholderPane({ title }: PaneProps) {
 const BuilderMiniPage = () => {
   return (
     <BuilderProvider>
+      <AutoSaveEffect />
       <div style={containerStyle}>
         <HeaderBar />
         <main style={panesStyle}>
           <PlaceholderPane title="左ペイン" />
-          <PlaceholderPane title="キャンバス" />
+          <section style={{ ...paneStyle, padding: 0 }}>
+            <div style={{ padding: 16, paddingBottom: 0 }}>
+              <h2 style={titleStyle}>キャンバス</h2>
+            </div>
+            <div style={{ padding: 16, paddingTop: 8 }}>
+              <Canvas />
+            </div>
+          </section>
           <section style={paneStyle}>
             <h2 style={titleStyle}>詳細</h2>
             <RightPane />

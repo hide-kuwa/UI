@@ -36,6 +36,10 @@ export default function HeaderBar() {
   const title = useEditorStore((s) => s.doc.title);
   const saveNow = useEditorStore((s) => s.saveNow);
   const isDirty = useEditorStore((s) => s.isDirty);
+  const selectedId = useEditorStore((s) => s.selectedId);
+  const deleteNode = useEditorStore((s) => s.deleteNode);
+  const duplicateNode = useEditorStore((s) => s.duplicateNode);
+  const moveNode = useEditorStore((s) => s.moveNode);
   const dirty = isDirty();
 
   const { addNode, focusNodeNameInput } = useBuilder();
@@ -52,8 +56,40 @@ export default function HeaderBar() {
         return;
       }
 
-      // Node shortcuts（テキスト入力中は無効）
       if (isEditableElement(e.target)) return;
+
+      if (selectedId) {
+        if (e.key === 'Delete' || e.key === 'Backspace') {
+          e.preventDefault();
+          deleteNode(selectedId);
+          return;
+        }
+
+        if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'd') {
+          e.preventDefault();
+          duplicateNode(selectedId);
+          return;
+        }
+
+        if (e.altKey && e.key === 'ArrowUp') {
+          e.preventDefault();
+          moveNode(selectedId, 'up');
+          return;
+        }
+
+        if (e.altKey && e.key === 'ArrowDown') {
+          e.preventDefault();
+          moveNode(selectedId, 'down');
+          return;
+        }
+      }
+
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        focusNodeNameInput();
+        return;
+      }
+
       if (e.metaKey || e.ctrlKey || e.altKey) return;
 
       const k = e.key.toLowerCase();
@@ -68,7 +104,15 @@ export default function HeaderBar() {
 
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [saveNow, addNode, focusNodeNameInput]);
+  }, [
+    saveNow,
+    addNode,
+    focusNodeNameInput,
+    selectedId,
+    deleteNode,
+    duplicateNode,
+    moveNode,
+  ]);
 
   const statusColor = dirty ? '#dc2626' : '#10b981';
   const statusLabel = dirty ? '● 未保存' : '✓ 保存済み';

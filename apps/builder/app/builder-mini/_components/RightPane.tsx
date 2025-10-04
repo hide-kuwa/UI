@@ -25,6 +25,7 @@ export default function RightPane() {
   const selectedId = useEditorStore((s) => s.selectedId);
   const doc = useEditorStore((s) => s.doc);
   const updateNodeName = useEditorStore((s) => s.updateNodeName);
+  const updateNodeProps = useEditorStore((s) => s.updateNodeProps);
   const { attachNodeNameInput, focusNodeNameInput } = useBuilder();
 
   const inputRef = useRef<HTMLInputElement>(null);
@@ -54,6 +55,20 @@ export default function RightPane() {
     updateNodeName(selectedNode.id, e.target.value);
   };
 
+  const handleTextValueChange = (e: ChangeEvent<HTMLInputElement>) => {
+    updateNodeProps(selectedNode.id, { text: e.target.value });
+  };
+
+  const handleFontSizeChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const value = Number(e.target.value);
+    if (Number.isNaN(value)) return;
+    updateNodeProps(selectedNode.id, { fontSize: value });
+  };
+
+  const handleButtonLabelChange = (e: ChangeEvent<HTMLInputElement>) => {
+    updateNodeProps(selectedNode.id, { label: e.target.value });
+  };
+
   return (
     <aside style={paneStyle}>
       <label style={labelStyle} htmlFor="node-name">
@@ -69,6 +84,49 @@ export default function RightPane() {
       />
       <p style={metaStyle}>id: {selectedNode.id}</p>
       <p style={metaStyle}>kind: {selectedNode.kind}</p>
+
+      {selectedNode.kind === 'text' ? (
+        <>
+          <label style={labelStyle} htmlFor="node-text">
+            表示テキスト
+          </label>
+          <input
+            id="node-text"
+            type="text"
+            value={selectedNode.props.text}
+            onChange={handleTextValueChange}
+            style={inputStyle}
+          />
+          <label style={labelStyle} htmlFor="node-font-size">
+            フォントサイズ
+          </label>
+          <input
+            id="node-font-size"
+            type="number"
+            min={8}
+            max={128}
+            step={1}
+            value={selectedNode.props.fontSize}
+            onChange={handleFontSizeChange}
+            style={inputStyle}
+          />
+        </>
+      ) : null}
+
+      {selectedNode.kind === 'button' ? (
+        <>
+          <label style={labelStyle} htmlFor="node-label">
+            ラベル
+          </label>
+          <input
+            id="node-label"
+            type="text"
+            value={selectedNode.props.label}
+            onChange={handleButtonLabelChange}
+            style={inputStyle}
+          />
+        </>
+      ) : null}
     </aside>
   );
 }

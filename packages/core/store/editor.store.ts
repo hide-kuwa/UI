@@ -87,6 +87,18 @@ type EditorState = {
   lastSaved?: string | null;
   computeSerialized: () => string;
   isDirty: () => boolean;
+
+  updateNodeProps: (
+    id: string,
+    props: Partial<
+      | { text: string; fontSize: number }
+      | { label: string }
+    >,
+  ) => void;
+
+  deleteNode: (id: string) => void;
+  duplicateNode: (id: string) => string;
+  moveNode: (id: string, direction: 'up' | 'down') => void;
 };
 
 export const useEditorStore = create<EditorState>((set, get) => {
@@ -110,6 +122,43 @@ export const useEditorStore = create<EditorState>((set, get) => {
       set({ doc: { ...doc, nodes } });
     },
 
+    updateNodeProps: (id, props) => {
+      const { doc } = get();
+      const target = findNode(doc.nodes, id);
+      if (!target) return;
+
+      if (target.kind === 'text') {
+        const nextProps = { ...target.props };
+        let changed = false;
+        if (props.text !== undefined && props.text !== nextProps.text) {
+          nextProps.text = props.text;
+          changed = true;
+        }
+        if (props.fontSize !== undefined && props.fontSize !== nextProps.fontSize) {
+          nextProps.fontSize = props.fontSize;
+          changed = true;
+        }
+        if (!changed) return;
+
+        const nodes = doc.nodes.map((n) => (n.id === id ? { ...n, props: nextProps } : n));
+        set({ doc: { ...doc, nodes } });
+        return;
+      }
+
+      if (target.kind === 'button') {
+        const nextProps = { ...target.props };
+        let changed = false;
+        if (props.label !== undefined && props.label !== nextProps.label) {
+          nextProps.label = props.label;
+          changed = true;
+        }
+        if (!changed) return;
+
+        const nodes = doc.nodes.map((n) => (n.id === id ? { ...n, props: nextProps } : n));
+        set({ doc: { ...doc, nodes } });
+      }
+    },
+
     addNode: (kind) => {
       const { doc } = get();
       // 表示名は連番でわかりやすく
@@ -125,6 +174,65 @@ export const useEditorStore = create<EditorState>((set, get) => {
         selectedId: id,
       }));
       return id;
+    },
+
+    deleteNode: (id) => {
+      const { doc, selectedId } = get();
+      const index = doc.nodes.findIndex((n) => n.id === id);
+      if (index === -1) return;
+
+      const nextNodes = doc.nodes.filter((n) => n.id !== id);
+
+      let nextSelected = selectedId;
+      if (selectedId === id) {
+        const next = nextNodes[index] ?? nextNodes[index - 1] ?? null;
+        nextSelected = next ? next.id : null;
+      }
+
+      set({
+        doc: { ...doc, nodes: nextNodes },
+        selectedId: nextSelected ?? null,
+      });
+    },
+
+    duplicateNode: (id) => {
+      const { doc } = get();
+      const index = doc.nodes.findIndex((n) => n.id === id);
+      if (index === -1) return id;
+
+      const target = doc.nodes[index];
+      const newId = genId(target.kind);
+      const duplicated: Node = {
+        ...target,
+        id: newId,
+        name: `${target.name} Copy`,
+        props: { ...target.props },
+      };
+
+      const nextNodes = [...doc.nodes];
+      nextNodes.splice(index + 1, 0, duplicated);
+
+      set({
+        doc: { ...doc, nodes: nextNodes },
+        selectedId: newId,
+      });
+
+      return newId;
+    },
+
+    moveNode: (id, direction) => {
+      const { doc } = get();
+      const index = doc.nodes.findIndex((n) => n.id === id);
+      if (index === -1) return;
+
+      const targetIndex = direction === 'up' ? index - 1 : index + 1;
+      if (targetIndex < 0 || targetIndex >= doc.nodes.length) return;
+
+      const nextNodes = [...doc.nodes];
+      const [node] = nextNodes.splice(index, 1);
+      nextNodes.splice(targetIndex, 0, node);
+
+      set({ doc: { ...doc, nodes: nextNodes } });
     },
 
     saveNow: () => {
