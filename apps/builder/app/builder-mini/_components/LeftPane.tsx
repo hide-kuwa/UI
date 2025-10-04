@@ -1,10 +1,9 @@
 'use client';
 
-import type { CSSProperties } from 'react';
 import { useCallback } from 'react';
+import type { CSSProperties } from 'react';
 
-import { useEditorStore } from '../../../../../packages/core/store/editor.store';
-import type { NodeKind } from '../../../../../packages/core/store/editor.store';
+import { useEditorStore, type EditorNode, type EditorStoreState, type NodeKind } from '../../../../../packages/core/store/editor.store';
 import { useBuilder } from './builderContext';
 
 const containerStyle: CSSProperties = {
@@ -73,22 +72,40 @@ function getNodeButtonStyle(active: boolean): CSSProperties {
 }
 
 function getKindBadgeStyle(kind: NodeKind): CSSProperties {
-  return {
-    ...kindBadgeBase,
-    backgroundColor: kind === 'text' ? '#ede9fe' : '#d1fae5',
-    color: kind === 'text' ? '#5b21b6' : '#047857',
-  };
+  if (kind === 'text') {
+    return { ...kindBadgeBase, backgroundColor: '#ede9fe', color: '#5b21b6' };
+  }
+  if (kind === 'button') {
+    return { ...kindBadgeBase, backgroundColor: '#d1fae5', color: '#047857' };
+  }
+  return kindBadgeBase;
 }
 
 function kindLabel(kind: NodeKind): string {
-  return kind === 'text' ? 'テキスト' : 'ボタン';
+  switch (kind) {
+    case 'text':
+      return 'テキスト';
+    case 'button':
+      return 'ボタン';
+    case 'header':
+      return 'ヘッダー';
+    case 'footer':
+      return 'フッター';
+    case 'sidebar':
+      return 'サイドバー';
+    case 'hud':
+      return 'HUD';
+    case 'image':
+      return 'イメージ';
+    default:
+      return kind;
+  }
 }
 
 export default function LeftPane() {
-  const nodes = useEditorStore((s) => s.doc.nodes);
-  const selectedId = useEditorStore((s) => s.selectedId);
-  const selectNode = useEditorStore((s) => s.selectNode);
-
+  const nodes = useEditorStore((state: EditorStoreState) => state.doc.nodes);
+  const selectedId = useEditorStore((state: EditorStoreState) => state.selectedId);
+  const selectNode = useEditorStore((state: EditorStoreState) => state.selectNode);
   const { addNode, focusNodeNameInput } = useBuilder();
 
   const handleAdd = useCallback(
@@ -96,7 +113,7 @@ export default function LeftPane() {
       addNode(kind);
       setTimeout(focusNodeNameInput, 0);
     },
-    [addNode, focusNodeNameInput]
+    [addNode, focusNodeNameInput],
   );
 
   return (
@@ -119,7 +136,7 @@ export default function LeftPane() {
           {nodes.length === 0 ? (
             <p style={emptyStateStyle}>まだノードがありません</p>
           ) : (
-            nodes.map((node) => {
+            nodes.map((node: EditorNode) => {
               const active = node.id === selectedId;
               return (
                 <button

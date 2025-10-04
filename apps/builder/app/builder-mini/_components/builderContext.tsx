@@ -1,8 +1,8 @@
 'use client';
 
 import { createContext, useCallback, useContext, useMemo, useRef, type PropsWithChildren } from 'react';
-import { useEditorStore } from '../../../../../packages/core/store/editor.store';
-import type { NodeKind } from '../../../../../packages/core/store/editor.store';
+
+import { useEditorStore, type EditorStoreState, type NodeKind } from '../../../../../packages/core/store/editor.store';
 
 type BuilderContextValue = {
   addNode: (kind: NodeKind) => void;
@@ -10,26 +10,28 @@ type BuilderContextValue = {
   focusNodeNameInput: () => void;
 };
 
-const Ctx = createContext<BuilderContextValue | null>(null);
+const BuilderContext = createContext<BuilderContextValue | null>(null);
 
 export function BuilderProvider({ children }: PropsWithChildren) {
-  const addNodeStore = useEditorStore((s) => s.addNode);
+  const addNodeStore = useEditorStore((state: EditorStoreState) => state.addNode);
   const inputRef = useRef<HTMLInputElement | null>(null);
 
-  const attachNodeNameInput = useCallback((el: HTMLInputElement | null) => {
-    inputRef.current = el;
+  const attachNodeNameInput = useCallback((element: HTMLInputElement | null) => {
+    inputRef.current = element;
   }, []);
 
   const focusNodeNameInput = useCallback(() => {
-    const el = inputRef.current;
-    if (!el) return;
-    el.focus();
-    el.select();
+    const element = inputRef.current;
+    if (!element) {
+      return;
+    }
+    element.focus();
+    element.select();
   }, []);
 
   const addNode = useCallback(
     (kind: NodeKind) => {
-      addNodeStore(kind); // 追加→選択は store 側で実施
+      addNodeStore(kind); // Store selects the node immediately after creation.
     },
     [addNodeStore],
   );
@@ -39,11 +41,13 @@ export function BuilderProvider({ children }: PropsWithChildren) {
     [addNode, attachNodeNameInput, focusNodeNameInput],
   );
 
-  return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
+  return <BuilderContext.Provider value={value}>{children}</BuilderContext.Provider>;
 }
 
 export function useBuilder() {
-  const v = useContext(Ctx);
-  if (!v) throw new Error('useBuilder must be used within <BuilderProvider>');
-  return v;
+  const context = useContext(BuilderContext);
+  if (!context) {
+    throw new Error('useBuilder must be used within <BuilderProvider>');
+  }
+  return context;
 }

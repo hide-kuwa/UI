@@ -2,6 +2,7 @@
 
 import { useEffect } from 'react';
 import type { CSSProperties } from 'react';
+
 import { useEditorStore } from '../../../../../packages/core/store/editor.store';
 import { useBuilder } from './builderContext';
 
@@ -36,63 +37,71 @@ export default function HeaderBar() {
   const title = useEditorStore((s) => s.doc.title);
   const saveNow = useEditorStore((s) => s.saveNow);
   const isDirty = useEditorStore((s) => s.isDirty);
+
+  // 追加されたノード操作 API
   const selectedId = useEditorStore((s) => s.selectedId);
   const deleteNode = useEditorStore((s) => s.deleteNode);
   const duplicateNode = useEditorStore((s) => s.duplicateNode);
   const moveNode = useEditorStore((s) => s.moveNode);
-  const dirty = isDirty();
 
   const { addNode, focusNodeNameInput } = useBuilder();
 
   useEffect(() => {
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.repeat) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.repeat) return;
 
       // Save: Cmd/Ctrl+S
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 's') {
-        e.preventDefault();
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 's') {
+        event.preventDefault();
         saveNow();
         window.alert('Saved');
         return;
       }
 
-      if (isEditableElement(e.target)) return;
+      // テキスト入力中はノード系ショートカット無効
+      if (isEditableElement(event.target)) return;
 
+      // 選択中ノードに対する操作
       if (selectedId) {
-        if (e.key === 'Delete' || e.key === 'Backspace') {
-          e.preventDefault();
+        // Delete / Backspace で削除
+        if (event.key === 'Delete' || event.key === 'Backspace') {
+          event.preventDefault();
           deleteNode(selectedId);
           return;
         }
 
-        if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'd') {
-          e.preventDefault();
+        // 複製: Cmd/Ctrl + D
+        if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'd') {
+          event.preventDefault();
           duplicateNode(selectedId);
           return;
         }
 
-        if (e.altKey && e.key === 'ArrowUp') {
-          e.preventDefault();
+        // 並び替え: Alt + ↑/↓
+        if (event.altKey && event.key === 'ArrowUp') {
+          event.preventDefault();
           moveNode(selectedId, 'up');
           return;
         }
-
-        if (e.altKey && e.key === 'ArrowDown') {
-          e.preventDefault();
+        if (event.altKey && event.key === 'ArrowDown') {
+          event.preventDefault();
           moveNode(selectedId, 'down');
           return;
         }
       }
 
-      if (e.key === 'Enter') {
-        e.preventDefault();
+      // Enter で右ペインの名前入力へ
+      if (event.key === 'Enter') {
+        event.preventDefault();
         focusNodeNameInput();
         return;
       }
 
-      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      // 修飾キー付きはここで終了
+      if (event.metaKey || event.ctrlKey || event.altKey) return;
 
-      const k = e.key.toLowerCase();
+      // 追加ショートカット: t / b
+      const k = event.key.toLowerCase();
       if (k === 't') {
         addNode('text');
         setTimeout(focusNodeNameInput, 0);
@@ -104,18 +113,16 @@ export default function HeaderBar() {
 
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [
-    saveNow,
-    addNode,
-    focusNodeNameInput,
-    selectedId,
-    deleteNode,
-    duplicateNode,
-    moveNode,
-  ]);
+  }, [saveNow, addNode, focusNodeNameInput, selectedId, deleteNode, duplicateNode, moveNode]);
 
+  const dirty = isDirty();
   const statusColor = dirty ? '#dc2626' : '#10b981';
-  const statusLabel = dirty ? '● 未保存' : '✓ 保存済み';
+  const statusLabel = dirty ? '未保存' : '保存済み';
+
+  const handleSave = () => {
+    saveNow();
+    window.alert('Saved');
+  };
 
   return (
     <header style={headerStyle}>
@@ -124,7 +131,7 @@ export default function HeaderBar() {
       </div>
       <div style={rightSectionStyle}>
         <span style={{ ...statusStyle, color: statusColor }}>{statusLabel}</span>
-        <button type="button" style={buttonStyle} onClick={() => (saveNow(), window.alert('Saved'))}>
+        <button type="button" style={buttonStyle} onClick={handleSave}>
           保存
         </button>
       </div>

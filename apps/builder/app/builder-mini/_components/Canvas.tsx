@@ -2,8 +2,7 @@
 
 import type { CSSProperties, KeyboardEvent } from 'react';
 
-import { useEditorStore } from '../../../../../packages/core/store/editor.store';
-import type { EditorNode } from '../../../../../packages/core/store/editor.store';
+import { useEditorStore, type EditorNode, type EditorStoreState } from '../../../../../packages/core/store/editor.store';
 
 const canvasStyle: CSSProperties = {
   display: 'flex',
@@ -72,6 +71,7 @@ function CanvasNode({ node, active, onSelect }: { node: EditorNode; active: bool
         onKeyDown={handleKeyDown}
       >
         <p style={{ ...textStyle, fontSize }}>{displayText}</p>
+        <p style={textStyle}>{node.props.text}</p>
       </div>
     );
   }
@@ -92,9 +92,9 @@ function CanvasNode({ node, active, onSelect }: { node: EditorNode; active: bool
 }
 
 export default function Canvas() {
-  const nodes = useEditorStore((s) => s.doc.nodes);
-  const selectedId = useEditorStore((s) => s.selectedId);
-  const selectNode = useEditorStore((s) => s.selectNode);
+  const nodes = useEditorStore((state: EditorStoreState) => state.doc.nodes);
+  const selectedId = useEditorStore((state: EditorStoreState) => state.selectedId);
+  const selectNode = useEditorStore((state: EditorStoreState) => state.selectNode);
 
   if (nodes.length === 0) {
     return (
@@ -106,7 +106,7 @@ export default function Canvas() {
 
   return (
     <div style={canvasStyle}>
-      {nodes.map((node) => (
+      {nodes.map((node: EditorNode) => (
         <CanvasNode key={node.id} node={node} active={node.id === selectedId} onSelect={() => selectNode(node.id)} />
       ))}
     </div>

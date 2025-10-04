@@ -1,24 +1,15 @@
 'use client';
 
-import type { CSSProperties, ChangeEvent } from 'react';
 import { useEffect, useMemo, useRef } from 'react';
-import { useEditorStore } from '../../../../../packages/core/store/editor.store';
+import type { CSSProperties, ChangeEvent } from 'react';
+
+import { useEditorStore, type EditorNode } from '../../../../../packages/core/store/editor.store';
 import { useBuilder } from './builderContext';
 
 const paneStyle: CSSProperties = { display: 'flex', flexDirection: 'column', gap: 12 };
 const placeholderStyle: CSSProperties = { color: '#9ca3af', fontSize: 14, margin: 0 };
-const labelStyle: CSSProperties = {
-  fontSize: 12,
-  fontWeight: 600,
-  letterSpacing: '0.04em',
-  textTransform: 'uppercase',
-};
-const inputStyle: CSSProperties = {
-  padding: '8px 12px',
-  borderRadius: 6,
-  border: '1px solid #d1d5db',
-  fontSize: 14,
-};
+const labelStyle: CSSProperties = { fontSize: 12, fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase' };
+const inputStyle: CSSProperties = { padding: '8px 12px', borderRadius: 6, border: '1px solid #d1d5db', fontSize: 14 };
 const metaStyle: CSSProperties = { fontSize: 12, color: '#6b7280', margin: 0 };
 
 export default function RightPane() {
@@ -29,10 +20,11 @@ export default function RightPane() {
   const { attachNodeNameInput, focusNodeNameInput } = useBuilder();
 
   const inputRef = useRef<HTMLInputElement>(null);
-  const selectedNode = useMemo(
-    () => (selectedId ? doc.nodes.find((n) => n.id === selectedId) ?? null : null),
-    [doc.nodes, selectedId]
-  );
+
+  const selectedNode = useMemo(() => {
+    if (!selectedId) return null;
+    return doc.nodes.find((node: EditorNode) => node.id === selectedId) ?? null;
+  }, [doc.nodes, selectedId]);
 
   useEffect(() => {
     attachNodeNameInput(inputRef.current);
@@ -51,8 +43,8 @@ export default function RightPane() {
     );
   }
 
-  const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
-    updateNodeName(selectedNode.id, e.target.value);
+  const handleChange = (event: ChangeEvent<HTMLInputElement>) => {
+    updateNodeName(selectedNode.id, event.target.value);
   };
 
   const handleTextValueChange = (e: ChangeEvent<HTMLInputElement>) => {
@@ -71,9 +63,7 @@ export default function RightPane() {
 
   return (
     <aside style={paneStyle}>
-      <label style={labelStyle} htmlFor="node-name">
-        ノード名
-      </label>
+      <label style={labelStyle} htmlFor="node-name">ノード名</label>
       <input
         id="node-name"
         ref={inputRef}
@@ -87,9 +77,7 @@ export default function RightPane() {
 
       {selectedNode.kind === 'text' ? (
         <>
-          <label style={labelStyle} htmlFor="node-text">
-            表示テキスト
-          </label>
+          <label style={labelStyle} htmlFor="node-text">表示テキスト</label>
           <input
             id="node-text"
             type="text"
@@ -97,9 +85,7 @@ export default function RightPane() {
             onChange={handleTextValueChange}
             style={inputStyle}
           />
-          <label style={labelStyle} htmlFor="node-font-size">
-            フォントサイズ
-          </label>
+          <label style={labelStyle} htmlFor="node-font-size">フォントサイズ</label>
           <input
             id="node-font-size"
             type="number"
@@ -115,9 +101,7 @@ export default function RightPane() {
 
       {selectedNode.kind === 'button' ? (
         <>
-          <label style={labelStyle} htmlFor="node-label">
-            ラベル
-          </label>
+          <label style={labelStyle} htmlFor="node-label">ラベル</label>
           <input
             id="node-label"
             type="text"

@@ -1,51 +1,51 @@
 'use client';
 
 import type { CSSProperties } from 'react';
+
 import HeaderBar from './_components/HeaderBar';
-import RightPane from './_components/RightPane';
+import LeftPane from './_components/LeftPane';
 import Canvas from './_components/Canvas';
+import RightPane from './_components/RightPane';
 import AutoSaveEffect from './_components/AutoSaveEffect';
 import { BuilderProvider } from './_components/builderContext';
-
-type PaneProps = { title: string };
 
 const containerStyle: CSSProperties = {
   minHeight: '100vh',
   display: 'flex',
   flexDirection: 'column',
-  backgroundColor: '#f9fafb',
+  backgroundColor: '#f3f4f6',
 };
 
-const panesStyle: CSSProperties = {
+const mainStyle: CSSProperties = {
   flex: 1,
   display: 'grid',
   gridTemplateColumns: '320px 1fr 320px',
   gap: 16,
   padding: 16,
+  boxSizing: 'border-box',
 };
 
-const paneStyle: CSSProperties = {
-  padding: 16,
+const paneShellStyle: CSSProperties = {
+  display: 'flex',
+  flexDirection: 'column',
+  minHeight: 0,
   borderRadius: 12,
   backgroundColor: '#ffffff',
   border: '1px solid #e5e7eb',
+  overflow: 'hidden',
 };
 
-const titleStyle: CSSProperties = {
-  margin: 0,
-  marginBottom: 8,
-  fontSize: 16,
-  fontWeight: 600,
+const paneContentStyle: CSSProperties = {
+  flex: 1,
+  padding: 16,
+  overflow: 'auto',
 };
 
-function PlaceholderPane({ title }: PaneProps) {
-  return (
-    <section style={paneStyle}>
-      <h2 style={titleStyle}>{title}</h2>
-      <p style={{ margin: 0, color: '#6b7280' }}>コンテンツ未実装</p>
-    </section>
-  );
-}
+const canvasContentStyle: CSSProperties = {
+  flex: 1,
+  padding: 24,
+  overflow: 'auto',
+};
 
 const BuilderMiniPage = () => {
   return (
@@ -53,19 +53,21 @@ const BuilderMiniPage = () => {
       <AutoSaveEffect />
       <div style={containerStyle}>
         <HeaderBar />
-        <main style={panesStyle}>
-          <PlaceholderPane title="左ペイン" />
-          <section style={{ ...paneStyle, padding: 0 }}>
-            <div style={{ padding: 16, paddingBottom: 0 }}>
-              <h2 style={titleStyle}>キャンバス</h2>
+        <main style={mainStyle}>
+          <section style={paneShellStyle}>
+            <div style={paneContentStyle}>
+              <LeftPane />
             </div>
-            <div style={{ padding: 16, paddingTop: 8 }}>
+          </section>
+          <section style={paneShellStyle}>
+            <div style={canvasContentStyle}>
               <Canvas />
             </div>
           </section>
-          <section style={paneStyle}>
-            <h2 style={titleStyle}>詳細</h2>
-            <RightPane />
+          <section style={paneShellStyle}>
+            <div style={paneContentStyle}>
+              <RightPane />
+            </div>
           </section>
         </main>
       </div>
