@@ -123,6 +123,7 @@ type EditorState = {
   deleteNode: (id: string) => void;
   duplicateNode: (id: string) => string;
   moveNode: (id: string, direction: 'up' | 'down') => void;
+  reorderNode: (id: string, toIndex: number) => void;
 };
 
 export type EditorStoreState = EditorState;
@@ -258,6 +259,21 @@ const editorStoreCreator: StateCreator<EditorState> = (set, get) => {
       nextNodes.splice(targetIndex, 0, node);
 
       set({ doc: { ...doc, nodes: nextNodes } });
+    },
+
+    reorderNode: (id, toIndex) => {
+      const { doc } = get();
+      const fromIndex = doc.nodes.findIndex((n) => n.id === id);
+      if (fromIndex === -1) return;
+
+      const clamped = Math.max(0, Math.min(toIndex, doc.nodes.length - 1));
+      if (fromIndex === clamped) return;
+
+      const next = [...doc.nodes];
+      const [moved] = next.splice(fromIndex, 1);
+      next.splice(clamped, 0, moved);
+
+      set({ doc: { ...doc, nodes: next } });
     },
 
     saveNow: () => {

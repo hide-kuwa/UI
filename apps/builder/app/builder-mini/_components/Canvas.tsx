@@ -22,12 +22,7 @@ const canvasStyle: CSSProperties = {
 
 const emptyStateStyle: CSSProperties = { textAlign: 'center', color: '#9ca3af', fontSize: 14 };
 
-function getNodeContainerStyle(
-  active: boolean,
-  showTop: boolean,
-  showBottom: boolean,
-  dragging: boolean
-): CSSProperties {
+function getNodeContainerStyle(active: boolean, showTop: boolean, showBottom: boolean, dragging: boolean): CSSProperties {
   return {
     padding: 12,
     borderRadius: 12,
@@ -151,7 +146,6 @@ export default function Canvas() {
   };
 
   const onDragLeaveItem = () => {
-    // no-op
   };
 
   const onDragOverCanvas = (e: React.DragEvent) => {
@@ -189,7 +183,6 @@ export default function Canvas() {
         const showTop = dropIndex === index;
         const showBottom = dropIndex === index + 1;
         const dragging = draggingId === node.id;
-
         return (
           <CanvasNode
             key={node.id}

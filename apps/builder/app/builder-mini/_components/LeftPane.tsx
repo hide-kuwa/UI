@@ -11,6 +11,7 @@ import {
 import { useBuilder } from './builderContext';
 
 const containerStyle: CSSProperties = { display: 'flex', flexDirection: 'column', gap: 16 };
+
 const sectionTitleStyle: CSSProperties = {
   fontSize: 12,
   fontWeight: 600,
@@ -18,8 +19,11 @@ const sectionTitleStyle: CSSProperties = {
   textTransform: 'uppercase',
   color: '#6b7280',
 };
+
 const helpStyle: CSSProperties = { fontSize: 12, color: '#9ca3af', marginTop: -6 };
+
 const addRowStyle: CSSProperties = { display: 'flex', gap: 8 };
+
 const addButtonStyle: CSSProperties = {
   flex: 1,
   padding: '8px 12px',
@@ -29,8 +33,11 @@ const addButtonStyle: CSSProperties = {
   cursor: 'pointer',
   fontSize: 13,
 };
+
 const listStyle: CSSProperties = { display: 'flex', flexDirection: 'column', gap: 8 };
+
 const emptyStateStyle: CSSProperties = { fontSize: 13, color: '#9ca3af' };
+
 const kindBadgeBase: CSSProperties = {
   fontSize: 12,
   padding: '2px 6px',
@@ -73,6 +80,7 @@ function getItemStyle(active: boolean, showTop: boolean, showBottom: boolean, dr
 }
 
 const actionsStyle: CSSProperties = { display: 'flex', gap: 6 };
+
 const actionBtnStyle: CSSProperties = {
   padding: '6px 8px',
   borderRadius: 6,
@@ -103,8 +111,6 @@ export default function LeftPane() {
     },
     [addNode, focusNodeNameInput]
   );
-
-  const handleSelect = (id: string) => () => selectNode(id);
 
   const onDragStart = (id: string) => (e: React.DragEvent) => {
     e.dataTransfer.setData('text/plain', id);
@@ -149,6 +155,7 @@ export default function LeftPane() {
     setDropIndex(null);
   };
 
+  const handleSelect = (id: string) => () => selectNode(id);
   const handleDuplicate = (id: string) => (e: React.MouseEvent) => {
     e.stopPropagation();
     duplicateNode(id);
@@ -207,7 +214,8 @@ export default function LeftPane() {
                   style={getItemStyle(active, showTop, showBottom, dragging)}
                 >
                   <span>
-                    {node.name} <span style={getKindBadgeStyle(node.kind)}>{kindLabel(node.kind)}</span>
+                    {node.name}{' '}
+                    <span style={getKindBadgeStyle(node.kind)}>{kindLabel(node.kind)}</span>
                   </span>
                   <div style={actionsStyle} onClick={(e) => e.preventDefault()}>
                     <button type="button" title="上へ" style={actionBtnStyle} onClick={handleMoveUp(node.id)}>
