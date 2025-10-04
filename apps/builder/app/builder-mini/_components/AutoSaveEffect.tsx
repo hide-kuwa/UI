@@ -4,10 +4,15 @@ import { useEffect, useRef } from 'react';
 import { useEditorStore } from '../../../../../packages/core/store/editor.store';
 
 export default function AutoSaveEffect() {
-  const [isDirty, saveNow] = useEditorStore((s) => [s.isDirty, s.saveNow]);
+  const [doc, lastSaved, computeSerialized, saveNow] = useEditorStore((s) => [
+    s.doc,
+    s.lastSaved,
+    s.computeSerialized,
+    s.saveNow,
+  ]);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const dirty = isDirty();
+  const dirty = computeSerialized() !== lastSaved;
 
   useEffect(() => {
     if (!dirty) {
@@ -18,12 +23,8 @@ export default function AutoSaveEffect() {
       return;
     }
 
-    if (timeoutRef.current) {
-      clearTimeout(timeoutRef.current);
-    }
-
     timeoutRef.current = setTimeout(() => {
-      if (isDirty()) {
+      if (computeSerialized() !== lastSaved) {
         saveNow();
       }
     }, 800);
@@ -34,7 +35,7 @@ export default function AutoSaveEffect() {
         timeoutRef.current = null;
       }
     };
-  }, [dirty, isDirty, saveNow]);
+  }, [dirty, computeSerialized, lastSaved, saveNow, doc]);
 
   useEffect(() => {
     return () => {
