@@ -58,6 +58,10 @@ function CanvasNode({ node, active, onSelect }: { node: EditorNode; active: bool
   };
 
   if (node.kind === 'text') {
+    const textProps = node.props ?? { text: node.name, fontSize: textStyle.fontSize ?? 16 };
+    const displayText = textProps.text ?? node.name;
+    const fontSize = textProps.fontSize ?? textStyle.fontSize ?? 16;
+
     return (
       <div
         style={getNodeContainerStyle(active)}
@@ -66,6 +70,7 @@ function CanvasNode({ node, active, onSelect }: { node: EditorNode; active: bool
         onClick={onSelect}
         onKeyDown={handleKeyDown}
       >
+        <p style={{ ...textStyle, fontSize }}>{displayText}</p>
         <p style={textStyle}>{node.props.text}</p>
       </div>
     );
@@ -80,7 +85,7 @@ function CanvasNode({ node, active, onSelect }: { node: EditorNode; active: bool
       onKeyDown={handleKeyDown}
     >
       <button type="button" style={buttonStyle}>
-        {node.name}
+        {node.props?.label ?? node.name}
       </button>
     </div>
   );

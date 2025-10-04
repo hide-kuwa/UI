@@ -3,7 +3,7 @@
 import { useEffect } from 'react';
 import type { CSSProperties } from 'react';
 
-import { useEditorStore, type EditorStoreState } from '../../../../../packages/core/store/editor.store';
+import { useEditorStore } from '../../../../../packages/core/store/editor.store';
 import { useBuilder } from './builderContext';
 
 const headerStyle: CSSProperties = {
@@ -28,25 +28,29 @@ const buttonStyle: CSSProperties = {
 };
 
 const isEditableElement = (target: EventTarget | null): boolean => {
-  if (!target || !(target instanceof HTMLElement)) {
-    return false;
-  }
+  if (!target || !(target instanceof HTMLElement)) return false;
   const tag = target.tagName.toLowerCase();
   return target.isContentEditable || tag === 'input' || tag === 'textarea' || tag === 'select';
 };
 
 export default function HeaderBar() {
-  const title = useEditorStore((state: EditorStoreState) => state.doc.title);
-  const saveNow = useEditorStore((state: EditorStoreState) => state.saveNow);
-  const isDirty = useEditorStore((state: EditorStoreState) => state.isDirty);
+  const title = useEditorStore((s) => s.doc.title);
+  const saveNow = useEditorStore((s) => s.saveNow);
+  const isDirty = useEditorStore((s) => s.isDirty);
+
+  // 追加されたノード操作 API
+  const selectedId = useEditorStore((s) => s.selectedId);
+  const deleteNode = useEditorStore((s) => s.deleteNode);
+  const duplicateNode = useEditorStore((s) => s.duplicateNode);
+  const moveNode = useEditorStore((s) => s.moveNode);
+
   const { addNode, focusNodeNameInput } = useBuilder();
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.repeat) {
-        return;
-      }
+      if (event.repeat) return;
 
+      // Save: Cmd/Ctrl+S
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 's') {
         event.preventDefault();
         saveNow();
@@ -54,29 +58,62 @@ export default function HeaderBar() {
         return;
       }
 
-      if (event.metaKey || event.ctrlKey || event.altKey) {
+      // テキスト入力中はノード系ショートカット無効
+      if (isEditableElement(event.target)) return;
+
+      // 選択中ノードに対する操作
+      if (selectedId) {
+        // Delete / Backspace で削除
+        if (event.key === 'Delete' || event.key === 'Backspace') {
+          event.preventDefault();
+          deleteNode(selectedId);
+          return;
+        }
+
+        // 複製: Cmd/Ctrl + D
+        if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'd') {
+          event.preventDefault();
+          duplicateNode(selectedId);
+          return;
+        }
+
+        // 並び替え: Alt + ↑/↓
+        if (event.altKey && event.key === 'ArrowUp') {
+          event.preventDefault();
+          moveNode(selectedId, 'up');
+          return;
+        }
+        if (event.altKey && event.key === 'ArrowDown') {
+          event.preventDefault();
+          moveNode(selectedId, 'down');
+          return;
+        }
+      }
+
+      // Enter で右ペインの名前入力へ
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        focusNodeNameInput();
         return;
       }
 
-      if (isEditableElement(event.target)) {
-        return;
-      }
+      // 修飾キー付きはここで終了
+      if (event.metaKey || event.ctrlKey || event.altKey) return;
 
-      const key = event.key.toLowerCase();
-      if (key === 't') {
+      // 追加ショートカット: t / b
+      const k = event.key.toLowerCase();
+      if (k === 't') {
         addNode('text');
         setTimeout(focusNodeNameInput, 0);
-      } else if (key === 'b') {
+      } else if (k === 'b') {
         addNode('button');
         setTimeout(focusNodeNameInput, 0);
       }
     };
 
     window.addEventListener('keydown', onKeyDown);
-    return () => {
-      window.removeEventListener('keydown', onKeyDown);
-    };
-  }, [saveNow, addNode, focusNodeNameInput]);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [saveNow, addNode, focusNodeNameInput, selectedId, deleteNode, duplicateNode, moveNode]);
 
   const dirty = isDirty();
   const statusColor = dirty ? '#dc2626' : '#10b981';

@@ -6,6 +6,7 @@ import HeaderBar from './_components/HeaderBar';
 import LeftPane from './_components/LeftPane';
 import Canvas from './_components/Canvas';
 import RightPane from './_components/RightPane';
+import AutoSaveEffect from './_components/AutoSaveEffect';
 import { BuilderProvider } from './_components/builderContext';
 
 const containerStyle: CSSProperties = {
@@ -49,6 +50,7 @@ const canvasContentStyle: CSSProperties = {
 const BuilderMiniPage = () => {
   return (
     <BuilderProvider>
+      <AutoSaveEffect />
       <div style={containerStyle}>
         <HeaderBar />
         <main style={mainStyle}>
