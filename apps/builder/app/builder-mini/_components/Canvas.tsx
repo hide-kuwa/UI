@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useState } from 'react';
 import type { CSSProperties, KeyboardEvent } from 'react';
@@ -39,6 +39,7 @@ function getNodeContainerStyle(active: boolean, showTop: boolean, showBottom: bo
 }
 
 const textStyle: CSSProperties = { fontSize: 16, color: '#111827' };
+
 const buttonStyle: CSSProperties = {
   display: 'inline-flex',
   alignItems: 'center',
@@ -145,7 +146,6 @@ export default function Canvas() {
   };
 
   const onDragLeaveItem = () => {
-    // noop: 枠外に出たときはリスト全体の onDragOver で補完
   };
 
   const onDragOverCanvas = (e: React.DragEvent) => {

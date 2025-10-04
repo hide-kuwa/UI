@@ -11,13 +11,40 @@ import {
 import { useBuilder } from './builderContext';
 
 const containerStyle: CSSProperties = { display: 'flex', flexDirection: 'column', gap: 16 };
-const sectionTitleStyle: CSSProperties = { fontSize: 12, fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase', color: '#6b7280' };
+
+const sectionTitleStyle: CSSProperties = {
+  fontSize: 12,
+  fontWeight: 600,
+  letterSpacing: '0.04em',
+  textTransform: 'uppercase',
+  color: '#6b7280',
+};
+
 const helpStyle: CSSProperties = { fontSize: 12, color: '#9ca3af', marginTop: -6 };
+
 const addRowStyle: CSSProperties = { display: 'flex', gap: 8 };
-const addButtonStyle: CSSProperties = { flex: 1, padding: '8px 12px', borderRadius: 6, border: '1px solid #e5e7eb', backgroundColor: '#f9fafb', cursor: 'pointer', fontSize: 13 };
+
+const addButtonStyle: CSSProperties = {
+  flex: 1,
+  padding: '8px 12px',
+  borderRadius: 6,
+  border: '1px solid #e5e7eb',
+  backgroundColor: '#f9fafb',
+  cursor: 'pointer',
+  fontSize: 13,
+};
+
 const listStyle: CSSProperties = { display: 'flex', flexDirection: 'column', gap: 8 };
+
 const emptyStateStyle: CSSProperties = { fontSize: 13, color: '#9ca3af' };
-const kindBadgeBase: CSSProperties = { fontSize: 12, padding: '2px 6px', borderRadius: 999, backgroundColor: '#e5e7eb', color: '#374151' };
+
+const kindBadgeBase: CSSProperties = {
+  fontSize: 12,
+  padding: '2px 6px',
+  borderRadius: 999,
+  backgroundColor: '#e5e7eb',
+  color: '#374151',
+};
 
 function getKindBadgeStyle(kind: NodeKind): CSSProperties {
   return {
@@ -53,7 +80,15 @@ function getItemStyle(active: boolean, showTop: boolean, showBottom: boolean, dr
 }
 
 const actionsStyle: CSSProperties = { display: 'flex', gap: 6 };
-const actionBtnStyle: CSSProperties = { padding: '6px 8px', borderRadius: 6, border: '1px solid #e5e7eb', background: '#fff', cursor: 'pointer', fontSize: 12 };
+
+const actionBtnStyle: CSSProperties = {
+  padding: '6px 8px',
+  borderRadius: 6,
+  border: '1px solid #e5e7eb',
+  background: '#fff',
+  cursor: 'pointer',
+  fontSize: 12,
+};
 
 export default function LeftPane() {
   const nodes = useEditorStore((s) => s.doc.nodes);
@@ -89,7 +124,7 @@ export default function LeftPane() {
   };
 
   const onDragOverItem = (index: number) => (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault(); // allow drop
+    e.preventDefault();
     const rect = e.currentTarget.getBoundingClientRect();
     const before = e.clientY - rect.top < rect.height / 2;
     setDropIndex(before ? index : index + 1);
@@ -97,14 +132,12 @@ export default function LeftPane() {
   };
 
   const onDragLeaveItem = () => {
-    // アイテムから外れただけでは消さない（リスト全体で確定させる）
+    // no-op
   };
 
   const onDragOverList = (e: React.DragEvent) => {
     e.preventDefault();
-    if (nodes.length > 0 && dropIndex == null) {
-      setDropIndex(nodes.length);
-    }
+    if (nodes.length > 0 && dropIndex == null) setDropIndex(nodes.length);
   };
 
   const onDropList = (e: React.DragEvent) => {
@@ -115,7 +148,6 @@ export default function LeftPane() {
     const from = nodes.findIndex((n) => n.id === id);
     if (from === -1) return;
 
-    // 自分より下に差し込む場合はインデックスが1つ詰まるので補正
     const to = dropIndex > from ? dropIndex - 1 : dropIndex;
     if (to !== from) reorderNode(id, to);
 
@@ -124,18 +156,34 @@ export default function LeftPane() {
   };
 
   const handleSelect = (id: string) => () => selectNode(id);
-  const handleDuplicate = (id: string) => (e: React.MouseEvent) => { e.stopPropagation(); duplicateNode(id); };
-  const handleDelete = (id: string) => (e: React.MouseEvent) => { e.stopPropagation(); deleteNode(id); };
-  const handleMoveUp = (id: string) => (e: React.MouseEvent) => { e.stopPropagation(); moveNode(id, 'up'); };
-  const handleMoveDown = (id: string) => (e: React.MouseEvent) => { e.stopPropagation(); moveNode(id, 'down'); };
+  const handleDuplicate = (id: string) => (e: React.MouseEvent) => {
+    e.stopPropagation();
+    duplicateNode(id);
+  };
+  const handleDelete = (id: string) => (e: React.MouseEvent) => {
+    e.stopPropagation();
+    deleteNode(id);
+  };
+  const handleMoveUp = (id: string) => (e: React.MouseEvent) => {
+    e.stopPropagation();
+    moveNode(id, 'up');
+  };
+  const handleMoveDown = (id: string) => (e: React.MouseEvent) => {
+    e.stopPropagation();
+    moveNode(id, 'down');
+  };
 
   return (
     <div style={containerStyle}>
       <section>
         <p style={sectionTitleStyle}>ノードを追加</p>
         <div style={addRowStyle}>
-          <button type="button" style={addButtonStyle} onClick={() => handleAdd('text')}>テキスト</button>
-          <button type="button" style={addButtonStyle} onClick={() => handleAdd('button')}>ボタン</button>
+          <button type="button" style={addButtonStyle} onClick={() => handleAdd('text')}>
+            テキスト
+          </button>
+          <button type="button" style={addButtonStyle} onClick={() => handleAdd('button')}>
+            ボタン
+          </button>
         </div>
         <p style={helpStyle}>ドラッグ＆ドロップで並べ替えできます</p>
       </section>
@@ -170,10 +218,18 @@ export default function LeftPane() {
                     <span style={getKindBadgeStyle(node.kind)}>{kindLabel(node.kind)}</span>
                   </span>
                   <div style={actionsStyle} onClick={(e) => e.preventDefault()}>
-                    <button type="button" title="上へ" style={actionBtnStyle} onClick={handleMoveUp(node.id)}>↑</button>
-                    <button type="button" title="下へ" style={actionBtnStyle} onClick={handleMoveDown(node.id)}>↓</button>
-                    <button type="button" title="複製" style={actionBtnStyle} onClick={handleDuplicate(node.id)}>⎘</button>
-                    <button type="button" title="削除" style={actionBtnStyle} onClick={handleDelete(node.id)}>✕</button>
+                    <button type="button" title="上へ" style={actionBtnStyle} onClick={handleMoveUp(node.id)}>
+                      ↑
+                    </button>
+                    <button type="button" title="下へ" style={actionBtnStyle} onClick={handleMoveDown(node.id)}>
+                      ↓
+                    </button>
+                    <button type="button" title="複製" style={actionBtnStyle} onClick={handleDuplicate(node.id)}>
+                      ⎘
+                    </button>
+                    <button type="button" title="削除" style={actionBtnStyle} onClick={handleDelete(node.id)}>
+                      ✕
+                    </button>
                   </div>
                 </div>
               );
