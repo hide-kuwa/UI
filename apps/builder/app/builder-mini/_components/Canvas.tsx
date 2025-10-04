@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useEffect, useRef, useState } from 'react';
 import type { CSSProperties, MouseEvent as ReactMouseEvent } from 'react';
@@ -49,7 +49,7 @@ const buttonInner: CSSProperties = {
 };
 
 const SNAP = 8;
-const RESIZE_ZONE = 12; // 右下隅からこのピクセル以内ならリサイズ
+const RESIZE_ZONE = 12; // 右下隅からこのpx以内ならリサイズ
 const snap = (v: number) => Math.round(v / SNAP) * SNAP;
 
 export default function Canvas() {
@@ -60,13 +60,13 @@ export default function Canvas() {
   const duplicateNode = useEditorStore((s) => s.duplicateNode);
   const nudgeNode = useEditorStore((s) => s.nudgeNode);
 
-  // viewport
+  // viewport (パン/ズーム)
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [spaceHeld, setSpaceHeld] = useState(false);
   const panningRef = useRef<{ x: number; y: number; sx: number; sy: number } | null>(null);
 
-  // drag/resize
+  // ドラッグ/リサイズの状態
   const dragRef = useRef<{
     id: string; startX: number; startY: number; baseX: number; baseY: number; dup?: boolean
   } | null>(null);
@@ -74,7 +74,7 @@ export default function Canvas() {
     id: string; startX: number; startY: number; baseW: number; baseH: number
   } | null>(null);
 
-  // Arrow キーでナッジ、Space でパン
+  // Spaceでパン、矢印キーでナッジ
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.code === 'Space') setSpaceHeld(e.type === 'keydown');
@@ -111,7 +111,7 @@ export default function Canvas() {
     setZoom(next);
   };
 
-  // Space 押下時のみパン
+  // Space中だけパン
   const onStageMouseDown = (e: ReactMouseEvent) => {
     if (!spaceHeld) return;
     panningRef.current = { x: pan.x, y: pan.y, sx: e.clientX, sy: e.clientY };
@@ -131,9 +131,9 @@ export default function Canvas() {
     window.addEventListener('mouseup', onUp);
   };
 
-  // ノード移動（Alt/Cmdドラッグで複製して移動）
+  // ノードドラッグ（Alt/Cmdで複製ドラッグ）
   const startDrag = (node: EditorNode, e: ReactMouseEvent) => {
-    if (spaceHeld) return; // パン中はドラッグ無効
+    if (spaceHeld) return; // パン中は無効
     selectNode(node.id);
 
     const props: any = node.props ?? {};
@@ -168,7 +168,7 @@ export default function Canvas() {
       let nx = dragRef.current.baseX + dx;
       let ny = dragRef.current.baseY + dy;
 
-      // Shift で軸ロック
+      // Shiftで軸ロック
       if (ev.shiftKey) {
         if (Math.abs(dx) > Math.abs(dy)) ny = dragRef.current.baseY;
         else nx = dragRef.current.baseX;
@@ -185,7 +185,7 @@ export default function Canvas() {
     window.addEventListener('mouseup', onUp);
   };
 
-  // リサイズ
+  // リサイズ（右下ホットゾーン）
   const startResize = (node: EditorNode, e: ReactMouseEvent) => {
     e.stopPropagation();
     selectNode(node.id);
@@ -241,7 +241,7 @@ export default function Canvas() {
               tabIndex={0}
               onMouseDown={(e) => {
                 if (spaceHeld) return;
-                // 右下隅のホットゾーンならリサイズ、それ以外はドラッグ
+                // 右下のホットゾーン判定
                 const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
                 const localX = e.clientX - rect.left;
                 const localY = e.clientY - rect.top;
@@ -271,7 +271,7 @@ export default function Canvas() {
                   <button type="button" style={buttonInner}>{p.label ?? node.name}</button>
                 </div>
               )}
-              {/* 目に見えるリサイズハンドルは無し */}
+              {/* 見えるリサイズハンドルは置かない */}
             </div>
           );
         })}
