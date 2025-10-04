@@ -20,13 +20,13 @@ const createSampleDocument = (): Document => ({
       id: 'node-text-1',
       name: 'Hero Title',
       kind: 'text',
-      props: { text: 'Hello world', fontSize: 32 },
+      props: { text: 'Hello world', fontSize: 32, width: 480, height: 120 },
     },
     {
       id: 'node-button-1',
       name: 'Primary Action',
       kind: 'button',
-      props: { label: 'Click me' },
+      props: { label: 'Click me', width: 200, height: 48 },
     },
   ],
 });
@@ -77,9 +77,19 @@ const genId = (kind: NodeKind): string => {
 const createNodeForKind = (kind: NodeKind, id: string, index: number): Node => {
   switch (kind) {
     case 'text':
-      return { id, name: `Text ${index}`, kind, props: { text: 'New Text', fontSize: 16 } };
+      return {
+        id,
+        name: `Text ${index}`,
+        kind,
+        props: { text: 'New Text', fontSize: 16, width: 300, height: 80 },
+      };
     case 'button':
-      return { id, name: `Button ${index}`, kind, props: { label: 'New Button' } };
+      return {
+        id,
+        name: `Button ${index}`,
+        kind,
+        props: { label: 'New Button', width: 160, height: 40 },
+      };
     case 'header':
       return { id, name: `Header ${index}`, kind, props: { height: 64, background: '#ffffff' } };
     case 'footer':
@@ -117,7 +127,10 @@ type EditorState = {
 
   updateNodeProps: (
     id: string,
-    props: Partial<{ text: string; fontSize: number } | { label: string }>,
+    props: Partial<
+      | { text: string; fontSize: number; width: number; height: number }
+      | { label: string; width: number; height: number }
+    >,
   ) => void;
 
   deleteNode: (id: string) => void;
@@ -166,6 +179,14 @@ const editorStoreCreator: StateCreator<EditorState> = (set, get) => {
           nextProps.fontSize = props.fontSize;
           changed = true;
         }
+        if (props.width !== undefined && props.width !== nextProps.width) {
+          nextProps.width = props.width;
+          changed = true;
+        }
+        if (props.height !== undefined && props.height !== nextProps.height) {
+          nextProps.height = props.height;
+          changed = true;
+        }
         if (!changed) return;
 
         const nodes = doc.nodes.map((n) => (n.id === id ? { ...n, props: nextProps } : n));
@@ -179,6 +200,14 @@ const editorStoreCreator: StateCreator<EditorState> = (set, get) => {
 
         if (props.label !== undefined && props.label !== nextProps.label) {
           nextProps.label = props.label;
+          changed = true;
+        }
+        if (props.width !== undefined && props.width !== nextProps.width) {
+          nextProps.width = props.width;
+          changed = true;
+        }
+        if (props.height !== undefined && props.height !== nextProps.height) {
+          nextProps.height = props.height;
           changed = true;
         }
         if (!changed) return;

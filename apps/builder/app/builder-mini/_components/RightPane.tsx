@@ -61,6 +61,18 @@ export default function RightPane() {
     updateNodeProps(selectedNode.id, { label: e.target.value });
   };
 
+  const handleWidthChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const value = Number(e.target.value);
+    if (Number.isNaN(value)) return;
+    updateNodeProps(selectedNode.id, { width: Math.max(40, value) } as any);
+  };
+
+  const handleHeightChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const value = Number(e.target.value);
+    if (Number.isNaN(value)) return;
+    updateNodeProps(selectedNode.id, { height: Math.max(32, value) } as any);
+  };
+
   return (
     <aside style={paneStyle}>
       <label style={labelStyle} htmlFor="node-name">ノード名</label>
@@ -74,6 +86,28 @@ export default function RightPane() {
       />
       <p style={metaStyle}>id: {selectedNode.id}</p>
       <p style={metaStyle}>kind: {selectedNode.kind}</p>
+
+      <label style={labelStyle} htmlFor="node-width">幅 (px)</label>
+      <input
+        id="node-width"
+        type="number"
+        min={40}
+        step={1}
+        value={(selectedNode.props as any).width ?? ''}
+        onChange={handleWidthChange}
+        style={inputStyle}
+      />
+
+      <label style={labelStyle} htmlFor="node-height">高さ (px)</label>
+      <input
+        id="node-height"
+        type="number"
+        min={32}
+        step={1}
+        value={(selectedNode.props as any).height ?? ''}
+        onChange={handleHeightChange}
+        style={inputStyle}
+      />
 
       {selectedNode.kind === 'text' ? (
         <>
