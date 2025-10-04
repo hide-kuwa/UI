@@ -1,6 +1,6 @@
-﻿'use client';
+'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { CSSProperties, MouseEvent as ReactMouseEvent } from 'react';
 import { useEditorStore, type EditorNode } from '../../../../../packages/core/store/editor.store';
 
@@ -48,19 +48,8 @@ const buttonInner: CSSProperties = {
   fontSize: 14,
 };
 
-const resizeHandle: CSSProperties = {
-  position: 'absolute',
-  right: 4,
-  bottom: 4,
-  width: 12,
-  height: 12,
-  borderRadius: 2,
-  border: '1px solid #2563eb',
-  background: '#eff6ff',
-  cursor: 'nwse-resize',
-};
-
 const SNAP = 8;
+const RESIZE_ZONE = 12; // 右下隅からこのピクセル以内ならリサイズ
 const snap = (v: number) => Math.round(v / SNAP) * SNAP;
 
 export default function Canvas() {
@@ -251,9 +240,16 @@ export default function Canvas() {
               role="button"
               tabIndex={0}
               onMouseDown={(e) => {
-                const target = e.target as HTMLElement;
-                if (target.dataset?.resizeHandle === '1') return;
-                startDrag(node, e);
+                if (spaceHeld) return;
+                // 右下隅のホットゾーンならリサイズ、それ以外はドラッグ
+                const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                const localX = e.clientX - rect.left;
+                const localY = e.clientY - rect.top;
+                if (localX >= rect.width - RESIZE_ZONE && localY >= rect.height - RESIZE_ZONE) {
+                  startResize(node, e);
+                } else {
+                  startDrag(node, e);
+                }
               }}
               onClick={() => selectNode(node.id)}
               style={{
@@ -275,11 +271,7 @@ export default function Canvas() {
                   <button type="button" style={buttonInner}>{p.label ?? node.name}</button>
                 </div>
               )}
-              <div
-                data-resize-handle="1"
-                style={resizeHandle}
-                onMouseDown={(ev) => startResize(node, ev)}
-              />
+              {/* 目に見えるリサイズハンドルは無し */}
             </div>
           );
         })}
