@@ -419,8 +419,20 @@ export default function Canvas() {
           const p: any = node.props ?? {};
           const x = p.x ?? 0;
           const y = p.y ?? 0;
-          const w = p.width ?? (node.kind === 'text' ? 300 : 160);
-          const h = p.height ?? (node.kind === 'text' ? 80 : 40);
+          const w =
+            p.width ??
+            (node.kind === 'text'
+              ? 300
+              : node.kind === 'header' || node.kind === 'footer'
+              ? 1200
+              : 160);
+          const h =
+            p.height ??
+            (node.kind === 'text'
+              ? 80
+              : node.kind === 'header' || node.kind === 'footer'
+              ? 64
+              : 40);
           const active = node.id === selectedId;
 
           return (
@@ -453,13 +465,39 @@ export default function Canvas() {
             >
               {node.kind === 'text' ? (
                 <div style={{ padding: 12, width: '100%', height: '100%', display: 'flex', alignItems: 'center' }}>
-                  <p style={{ ...textStyle, fontSize: (p.fontSize ?? 16) }}>{p.text ?? node.name}</p>
+                  <p style={{ ...textStyle, fontSize: p.fontSize ?? 16 }}>{p.text ?? node.name}</p>
                 </div>
-              ) : (
+              ) : node.kind === 'button' ? (
                 <div style={{ width: '100%', height: '100%', display: 'grid', placeItems: 'center' }}>
-                  <button type="button" style={buttonInner}>{p.label ?? node.name}</button>
+                  <button
+                    type="button"
+                    style={buttonInner}
+                    onDoubleClick={(e) => {
+                      e.stopPropagation();
+                      const a = (p as any).action;
+                      if (!a) return;
+                      if (a.type === 'alert' && a.message) window.alert(a.message);
+                      if (a.type === 'open_url' && a.url)
+                        window.open(a.url, '_blank', 'noopener,noreferrer');
+                    }}
+                  >
+                    {p.label ?? node.name}
+                  </button>
                 </div>
-              )}
+              ) : node.kind === 'header' || node.kind === 'footer' ? (
+                <div
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    background: p.background ?? '#ffffff',
+                    display: 'flex',
+                    alignItems: 'center',
+                    padding: 12,
+                  }}
+                >
+                  <span style={{ fontSize: 12, color: '#6b7280' }}>{node.kind.toUpperCase()}</span>
+                </div>
+              ) : null}
             </div>
           );
         })}

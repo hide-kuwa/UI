@@ -47,15 +47,33 @@ const kindBadgeBase: CSSProperties = {
 };
 
 function getKindBadgeStyle(kind: NodeKind): CSSProperties {
-  return {
-    ...kindBadgeBase,
-    backgroundColor: kind === 'text' ? '#ede9fe' : '#d1fae5',
-    color: kind === 'text' ? '#5b21b6' : '#047857',
-  };
+  switch (kind) {
+    case 'text':
+      return { ...kindBadgeBase, backgroundColor: '#ede9fe', color: '#5b21b6' };
+    case 'button':
+      return { ...kindBadgeBase, backgroundColor: '#d1fae5', color: '#047857' };
+    case 'header':
+      return { ...kindBadgeBase, backgroundColor: '#fee2e2', color: '#b91c1c' };
+    case 'footer':
+      return { ...kindBadgeBase, backgroundColor: '#dbeafe', color: '#1d4ed8' };
+    default:
+      return kindBadgeBase;
+  }
 }
 
 function kindLabel(kind: NodeKind): string {
-  return kind === 'text' ? 'テキスト' : 'ボタン';
+  switch (kind) {
+    case 'text':
+      return 'テキスト';
+    case 'button':
+      return 'ボタン';
+    case 'header':
+      return 'ヘッダー';
+    case 'footer':
+      return 'フッター';
+    default:
+      return kind;
+  }
 }
 
 function getItemStyle(active: boolean, showTop: boolean, showBottom: boolean, dragging: boolean): CSSProperties {
@@ -186,6 +204,19 @@ export default function LeftPane() {
           </button>
         </div>
         <p style={helpStyle}>ドラッグ＆ドロップで並べ替えできます</p>
+      </section>
+
+      <section>
+        <p style={sectionTitleStyle}>プリセット</p>
+        <div style={addRowStyle}>
+          <button type="button" style={addButtonStyle} onClick={() => handleAdd('header')}>
+            ヘッダー
+          </button>
+          <button type="button" style={addButtonStyle} onClick={() => handleAdd('footer')}>
+            フッター
+          </button>
+        </div>
+        <p style={helpStyle}>ドラッグで移動、右下辺のホットゾーンでリサイズ</p>
       </section>
 
       <section onDragOver={onDragOverList} onDrop={onDropList}>
