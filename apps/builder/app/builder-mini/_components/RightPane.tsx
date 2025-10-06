@@ -82,6 +82,8 @@ export default function RightPane() {
     if (!Number.isNaN(v)) updateNodeProps(selectedNode.id, { y: v } as any);
   };
 
+  const nodeProps = selectedNode.props as any;
+
   return (
     <aside style={paneStyle}>
       <label style={labelStyle} htmlFor="node-name">ノード名</label>
@@ -101,7 +103,7 @@ export default function RightPane() {
         id="node-x"
         type="number"
         step={1}
-        value={(selectedNode.props as any).x ?? 0}
+        value={nodeProps.x ?? 0}
         onChange={handleXChange}
         style={inputStyle}
       />
@@ -111,7 +113,7 @@ export default function RightPane() {
         id="node-y"
         type="number"
         step={1}
-        value={(selectedNode.props as any).y ?? 0}
+        value={nodeProps.y ?? 0}
         onChange={handleYChange}
         style={inputStyle}
       />
@@ -122,7 +124,7 @@ export default function RightPane() {
         type="number"
         min={40}
         step={1}
-        value={(selectedNode.props as any).width ?? ''}
+        value={nodeProps.width ?? ''}
         onChange={handleWidthChange}
         style={inputStyle}
       />
@@ -133,10 +135,23 @@ export default function RightPane() {
         type="number"
         min={32}
         step={1}
-        value={(selectedNode.props as any).height ?? ''}
+        value={nodeProps.height ?? ''}
         onChange={handleHeightChange}
         style={inputStyle}
       />
+
+      {(selectedNode.kind === 'header' || selectedNode.kind === 'footer') && (
+        <>
+          <label style={labelStyle} htmlFor="node-bg">背景色</label>
+          <input
+            id="node-bg"
+            type="color"
+            value={nodeProps.background ?? '#ffffff'}
+            onChange={(e) => updateNodeProps(selectedNode.id, { background: e.target.value } as any)}
+            style={{ ...inputStyle, padding: 0, height: 36 }}
+          />
+        </>
+      )}
 
       {selectedNode.kind === 'text' ? (
         <>
@@ -144,7 +159,7 @@ export default function RightPane() {
           <input
             id="node-text"
             type="text"
-            value={selectedNode.props.text}
+            value={nodeProps.text}
             onChange={handleTextValueChange}
             style={inputStyle}
           />
@@ -155,7 +170,7 @@ export default function RightPane() {
             min={8}
             max={128}
             step={1}
-            value={selectedNode.props.fontSize}
+            value={nodeProps.fontSize}
             onChange={handleFontSizeChange}
             style={inputStyle}
           />
@@ -168,10 +183,76 @@ export default function RightPane() {
           <input
             id="node-label"
             type="text"
-            value={selectedNode.props.label}
+            value={nodeProps.label}
             onChange={handleButtonLabelChange}
             style={inputStyle}
           />
+
+          <label style={labelStyle}>アクション</label>
+          <select
+            style={inputStyle}
+            value={nodeProps.action?.type ?? 'none'}
+            onChange={(e) => {
+              const t = e.target.value;
+              if (t === 'none') updateNodeProps(selectedNode.id, { action: null } as any);
+              if (t === 'alert')
+                updateNodeProps(selectedNode.id, { action: { type: 'alert', message: 'Hello!' } } as any);
+              if (t === 'open_url')
+                updateNodeProps(selectedNode.id, { action: { type: 'open_url', url: 'https://example.com' } } as any);
+            }}
+          >
+            <option value="none">なし</option>
+            <option value="alert">アラートを表示</option>
+            <option value="open_url">URLを開く</option>
+          </select>
+
+          {nodeProps.action?.type === 'alert' && (
+            <>
+              <label style={labelStyle} htmlFor="alert-msg">メッセージ</label>
+              <input
+                id="alert-msg"
+                type="text"
+                style={inputStyle}
+                value={nodeProps.action?.message ?? ''}
+                onChange={(e) =>
+                  updateNodeProps(selectedNode.id, {
+                    action: { type: 'alert', message: e.target.value },
+                  } as any)
+                }
+              />
+            </>
+          )}
+
+          {nodeProps.action?.type === 'open_url' && (
+            <>
+              <label style={labelStyle} htmlFor="action-url">URL</label>
+              <input
+                id="action-url"
+                type="text"
+                style={inputStyle}
+                placeholder="https://..."
+                value={nodeProps.action?.url ?? ''}
+                onChange={(e) =>
+                  updateNodeProps(selectedNode.id, {
+                    action: { type: 'open_url', url: e.target.value },
+                  } as any)
+                }
+              />
+            </>
+          )}
+
+          <button
+            type="button"
+            style={{ ...inputStyle, cursor: 'pointer' }}
+            onClick={() => {
+              const a = nodeProps.action;
+              if (!a) return;
+              if (a.type === 'alert' && a.message) window.alert(a.message);
+              if (a.type === 'open_url' && a.url) window.open(a.url, '_blank', 'noopener,noreferrer');
+            }}
+          >
+            テスト実行
+          </button>
         </>
       ) : null}
     </aside>

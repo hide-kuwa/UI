@@ -74,9 +74,19 @@ const createNodeForKind = (kind: NodeKind, id: string, index: number): Node => {
     case 'button':
       return { id, name: `Button ${index}`, kind, props: { label: 'New Button', width: 160, height: 40, x: 40, y: yBase } };
     case 'header':
-      return { id, name: `Header ${index}`, kind, props: { height: 64, background: '#ffffff' } };
+      return {
+        id,
+        name: `Header ${index}`,
+        kind,
+        props: { x: 40, y: 24, width: 1200, height: 64, background: '#ffffff' },
+      };
     case 'footer':
-      return { id, name: `Footer ${index}`, kind, props: { height: 64, background: '#ffffff' } };
+      return {
+        id,
+        name: `Footer ${index}`,
+        kind,
+        props: { x: 40, y: 720, width: 1200, height: 64, background: '#ffffff' },
+      };
     case 'sidebar':
       return { id, name: `Sidebar ${index}`, kind, props: { side: 'left', width: 280, background: '#f9fafb' } };
     case 'hud':
@@ -102,13 +112,7 @@ type EditorState = {
   computeSerialized: () => string;
   isDirty: () => boolean;
 
-  updateNodeProps: (
-    id: string,
-    props: Partial<
-      | { text: string; fontSize: number; width: number; height: number; x: number; y: number }
-      | { label: string; width: number; height: number; x: number; y: number }
-    >,
-  ) => void;
+  updateNodeProps: (id: string, props: Partial<Record<string, any>>) => void;
 
   deleteNode: (id: string) => void;
   duplicateNode: (id: string) => string;
@@ -145,30 +149,39 @@ const editorStoreCreator: StateCreator<EditorState> = (set, get) => {
       const target = findNode(doc.nodes, id);
       if (!target) return;
 
-      const nextProps = { ...target.props } as any;
+      const nextProps: any = { ...(target as any).props };
       let changed = false;
 
-      // 共通（サイズ/座標）
-      (['width', 'height', 'x', 'y'] as const).forEach((k) => {
-        const v = (props as any)[k];
-        if (v !== undefined && nextProps[k] !== v) {
-          nextProps[k] = v;
+      // --- 共通: 位置/サイズ ---
+      (['x', 'y', 'width', 'height'] as const).forEach((k) => {
+        if ((props as any)[k] !== undefined && nextProps[k] !== (props as any)[k]) {
+          nextProps[k] = (props as any)[k];
           changed = true;
         }
       });
 
+      // --- kind 別 ---
       if (target.kind === 'text') {
-        if ('text' in (props as any) && nextProps.text !== (props as any).text) {
+        if ((props as any).text !== undefined && nextProps.text !== (props as any).text) {
           nextProps.text = (props as any).text;
           changed = true;
         }
-        if ('fontSize' in (props as any) && nextProps.fontSize !== (props as any).fontSize) {
+        if ((props as any).fontSize !== undefined && nextProps.fontSize !== (props as any).fontSize) {
           nextProps.fontSize = (props as any).fontSize;
           changed = true;
         }
       } else if (target.kind === 'button') {
-        if ('label' in (props as any) && nextProps.label !== (props as any).label) {
+        if ((props as any).label !== undefined && nextProps.label !== (props as any).label) {
           nextProps.label = (props as any).label;
+          changed = true;
+        }
+        if ((props as any).action !== undefined) {
+          nextProps.action = (props as any).action;
+          changed = true;
+        }
+      } else if (target.kind === 'header' || target.kind === 'footer') {
+        if ((props as any).background !== undefined && nextProps.background !== (props as any).background) {
+          nextProps.background = (props as any).background;
           changed = true;
         }
       }
